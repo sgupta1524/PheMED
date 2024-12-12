@@ -157,6 +157,22 @@ if __name__ == '__main__':
         betas = df_stats[beta_vars]
         ses = df_stats[se_vars]
 
+        invalid_betas = np.isinf(betas).sum().sum()
+        if invalid_betas > 0:
+            logger.warning(f"{invalid_betas} infinite beta values found.")
+            # Handle infinite betas - replacing them with 0
+            betas = betas.replace([np.inf, -np.inf], 0)
+
+        invalid_ses = np.isinf(ses).sum().sum()
+        if invalid_ses > 0:
+            logger.warning(f"{invalid_ses} infinite standard error values found.")
+            # Handle infinite ses, e.g., replacing them with a specific value
+            ses = ses.replace([np.inf, -np.inf], 1000)
+
+        # Update the DataFrame with cleaned betas and ses
+        df_stats[beta_vars] = betas
+        df_stats[se_vars] = ses
+
         optimizer = minimize(lambda x: phe.nll_data(betas,ses, x, dilution_limit = dilution_limit), np.ones(n_studies),
                         options={'maxiter': max_iters}, method = optimizer_method)
     #code normalizes first entry to be 1
