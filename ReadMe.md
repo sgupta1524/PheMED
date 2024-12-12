@@ -45,7 +45,7 @@ After running the phemed script above, users can run a dilution adjusted weights
 python daw_meta.py --sum_stats data/sim_data.csv \
                   --n_studies 2 \
                   --out output/local_test \
-                  --dilution_weights output/local_test_DilutionVals.csv
+                  --dilution_weights output/local_test_Summary.csv
 ```
 
 - `--sum_stats` identifies the csv with the merged log odds ratios and standard errors for each study
