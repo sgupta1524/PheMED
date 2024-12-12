@@ -166,7 +166,7 @@ if __name__ == '__main__':
         invalid_ses = np.isinf(ses).sum().sum()
         if invalid_ses > 0:
             logger.warning(f"{invalid_ses} infinite standard error values found.")
-            # Handle infinite ses, e.g., replacing them with a specific value
+            # Handle infinite betas - replacing them with 1000
             ses = ses.replace([np.inf, -np.inf], 1000)
 
         # Update the DataFrame with cleaned betas and ses
