@@ -144,7 +144,14 @@ if __name__ == '__main__':
         se_vars = [var for i, var in enumerate(df_stats.columns) if i >= df_stats.shape[1] - n_studies]
 
     #addressing nulls
+
+        na_count_betas = df_stats[beta_vars].isna().sum().sum()
+        # Log a warning if NA values are found and replaced
+        if na_count_betas > 0:
+            logger.warning(f"{na_count_betas} invalid values found for beta and replaced with 0")
+        # Replace NA values with 0
         df_stats[beta_vars] = df_stats[beta_vars].fillna(0)
+
         se_imputed_value = 1000
         df_stats[se_vars] = df_stats[se_vars].fillna(se_imputed_value)
         invalid_se_values = (df_stats[se_vars] <= 0).sum().sum()
@@ -153,7 +160,7 @@ if __name__ == '__main__':
             df_stats[se_vars] = df_stats[se_vars].applymap(lambda x: x if x > 0 else se_imputed_value)
             #df_stats[se_vars][df_stats[se_vars] <= 0] = se_imputed_value
 
-    #later add qc for betas, ses
+    #Added qc for betas, ses
         betas = df_stats[beta_vars]
         ses = df_stats[se_vars]
 
