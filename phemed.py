@@ -194,7 +194,7 @@ if __name__ == '__main__':
             raise ValueError(f"ERROR: median value of betas is {m} (should be close to {expected_median}). "
                              "This column may be mislabeled.")
         else:
-            logger.info(f'Median value of {name} was {m}, which seems sensible.')
+            logger.info(f'Median value of betas was {m}, which seems sensible.')
 
         optimizer = minimize(lambda x: phe.nll_data(betas,ses, x, dilution_limit = dilution_limit), np.ones(n_studies),
                         options={'maxiter': max_iters}, method = optimizer_method)
