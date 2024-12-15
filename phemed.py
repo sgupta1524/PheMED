@@ -168,17 +168,18 @@ if __name__ == '__main__':
         betas = df_stats[beta_vars]
         ses = df_stats[se_vars]
 
-        invalid_betas = np.isinf(betas).sum().sum()
+        invalid_betas = ((betas < -1e10) | (betas > 1e10)).sum().sum()
         if invalid_betas > 0:
-            logger.warning(f"{invalid_betas} infinite beta values found.")
-            # Handle infinite betas - replacing them with 0
-            betas = betas.replace([np.inf, -np.inf], 0)
+            logger.warning(f"{invalid_betas} invalid beta values found (either infinite or outside the "
+                           f"range (-1e10, 1e10)).")
+            # Handle extreme betas - replacing them with 0
+            betas = betas.where((betas >= -1e10) & (betas <= 1e10), 0)
 
-        invalid_ses = np.isinf(ses).sum().sum()
+        invalid_ses = ((ses < 0) | (ses > 1000)).sum().sum()
         if invalid_ses > 0:
-            logger.warning(f"{invalid_ses} infinite standard error values found.")
+            logger.warning(f"{invalid_ses} invalis standard error values found.")
             # Handle infinite betas - replacing them with 1000
-            ses = ses.replace([np.inf, -np.inf], 1000)
+            ses = ses.where((ses >= 0) & (ses <= 1000), 1000)
 
         # Update the DataFrame with cleaned betas and ses
         df_stats[beta_vars] = betas
