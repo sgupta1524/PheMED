@@ -170,8 +170,7 @@ if __name__ == '__main__':
 
         invalid_betas = ((betas < -1e10) | (betas > 1e10)).sum().sum()
         if invalid_betas > 0:
-            logger.warning(f"{invalid_betas} invalid beta values found (either infinite or outside the "
-                           f"range (-1e10, 1e10)).")
+            logger.warning(f"{invalid_betas} invalid beta values found outside the range (-1e10, 1e10)).")
             # Handle extreme betas - replacing them with 0
             betas = betas.where((betas >= -1e10) & (betas <= 1e10), 0)
 
