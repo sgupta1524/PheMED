@@ -14,6 +14,10 @@ import logging
 import bootstrap as boots
 from numpy.random import Philox, Generator
 
+#Display WARNING messages
+logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
+
 #assumes betas and ses are last columns of df
 #ID cols ... Beta Cols ... SE Cols
 
@@ -144,7 +148,7 @@ if __name__ == '__main__':
         se_vars = [var for i, var in enumerate(df_stats.columns) if i >= df_stats.shape[1] - n_studies]
 
     #addressing nulls
-
+        
         na_count_betas = df_stats[beta_vars].isna().sum().sum()
         # Log a warning if NA values are found and replaced
         if na_count_betas > 0:
