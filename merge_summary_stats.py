@@ -142,7 +142,7 @@ def merge_summary_stats():
     '''
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
+    parser.add_argument("--n_files", type=str, help="Number of summary statistics to merge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
     args = parser.parse_args()
