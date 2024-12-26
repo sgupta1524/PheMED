@@ -152,7 +152,7 @@ if __name__ == '__main__':
         na_count_betas = df_stats[beta_vars].isna().sum().sum()
         # Log a warning if NA values are found and replaced
         if na_count_betas > 0:
-            logger.warning(f"{na_count_betas} invalid values found for beta and replaced with 0")
+            logger.warning("{} invalid values found for beta and replaced with 0".format(na_count_betas))
         # Replace NA values with 0
         df_stats[beta_vars] = df_stats[beta_vars].fillna(0)
 
@@ -170,13 +170,13 @@ if __name__ == '__main__':
 
         invalid_betas = ((betas < -1e10) | (betas > 1e10)).sum().sum()
         if invalid_betas > 0:
-            logger.warning(f"{invalid_betas} invalid beta values found outside the range (-1e10, 1e10)).")
+            logger.warning("{} invalid beta values found outside the range (-1e10, 1e10).".format(invalid_betas))
             # Handle extreme betas - replacing them with 0
             betas = betas.where((betas >= -1e10) & (betas <= 1e10), 0)
 
         invalid_ses = ((ses < 0) | (ses > 1000)).sum().sum()
         if invalid_ses > 0:
-            logger.warning(f"{invalid_ses} invalis standard error values found.")
+            logger.warning("{} invalid standard error values found.".format(invalid_ses))
             # Handle infinite betas - replacing them with 1000
             ses = ses.where((ses >= 0) & (ses <= 1000), 1000)
 
@@ -190,10 +190,10 @@ if __name__ == '__main__':
         m = np.median(betas)
 
         if np.abs(m - expected_median) > tolerance:
-            raise ValueError(f"ERROR: median value of betas is {m} (should be close to {expected_median}). "
-                             "This column may be mislabeled.")
+            raise ValueError("ERROR: median value of betas is {} (should be close to {}). "
+                 "This column may be mislabeled.".format(m, expected_median))
         else:
-            logger.info(f'Median value of betas was {m}, which seems sensible.')
+            logger.info("Median value of betas was {}, which seems sensible.".format(m))
 
         optimizer = minimize(lambda x: phe.nll_data(betas,ses, x, dilution_limit = dilution_limit), np.ones(n_studies),
                         options={'maxiter': max_iters}, method = optimizer_method)
