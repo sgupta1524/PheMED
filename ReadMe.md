@@ -8,10 +8,13 @@ conda env create --file environment.yml
 source activate phemed
 ```
 ### Running PheMED
-To merge summary statistics file before running PheMED:
+To prepare input file for PheMED (merge summary statistics) file before running PheMED:
 ```
 python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --output test --n_files 2
 ```
+- `--inputs` comma separated paths to input summary statistics files
+- `--n_files` Number of summary statistics to merge
+- `--output` path to output munged summary statistics file
 
 To run PheMED on the sample data, run the following command:
 ```
