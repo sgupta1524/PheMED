@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 import re
 
+# Mapping of various column names to standardized names
 COLUMN_MAP = {
     'snp': 'SNP',
     'markername': 'SNP',
@@ -52,6 +53,10 @@ COLUMN_MAP = {
 }
 
 def get_column_index(header, target):
+    """
+    Get the index of the target column in the header row.
+    The header row is converted to lowercase to make the search case insensitive.
+    """
     header = [col.lower() for col in header]
     for col_name, mapped_name in COLUMN_MAP.items():
         if mapped_name == target and col_name in header:
@@ -61,13 +66,14 @@ def get_column_index(header, target):
 def parse_dat(inputs):
     """
     Read input summary stats files in chunks, compare SNP, REF, and ALT columns,
-    and merge the files to include SNP, CHROM, POS, BETA1, SE1, BETA2, SE2 columns
+    and merge the files to include SNP, CHROM, POS, BETA1, SE1, BETA2, SE2 columns.
     """
     input_files = inputs.split(',')
     data = {}
 
     for idx, file in enumerate(input_files):
         with open(file, 'r') as f:
+            # Determine the delimiter based on the first line of the file
             first_line = f.readline()
             if '\t' in first_line:
                 delimiter = '\t'
@@ -86,6 +92,7 @@ def parse_dat(inputs):
             header = next(reader)  # Read the header row
             header = [col.strip() for col in header]
 
+            # Get the indices of the required columns
             snp_index = get_column_index(header, 'SNP')
             chrom_index = get_column_index(header, 'CHR')
             pos_index = get_column_index(header, 'POS')
@@ -115,6 +122,7 @@ def parse_dat(inputs):
                         'SE2': None
                     }
 
+                # Check if REF and ALT match, then update the data dictionary
                 if ref == data[snp]['REF'] and alt == data[snp]['ALT']:
                     if idx == 0:
                         data[snp]['BETA1'] = beta
@@ -134,13 +142,13 @@ def merge_summary_stats():
     '''
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--N", type=str, help="Number of summary statistics to munge")
+    parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
     args = parser.parse_args()
 
     # Save the inputs to variables
-    num_summary_stats = args.N
+    num_summary_stats = args.n_files
     input_files = args.inputs
     output_file = args.output
 
