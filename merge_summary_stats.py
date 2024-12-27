@@ -17,9 +17,7 @@ COLUMN_MAP = {
     'chromosome': 'CHR',
     'chromosome_number': 'CHR',
     'hg18chr': 'CHR',
-    'hg18chrom': 'CHR',
-    'hg36chr': 'CHR',
-    'hg36chrom': 'CHR',
+    'hg19chr': 'CHR',
     'bp': 'POS',
     'position': 'POS',
     'pos': 'POS',
@@ -61,7 +59,7 @@ def get_column_index(header, target):
     for col_name, mapped_name in COLUMN_MAP.items():
         if mapped_name == target and col_name in header:
             return header.index(col_name)
-    raise ValueError("Column for {} not found in header".format(target))
+    return None  # Return None if the target column is not found
 
 def parse_dat(inputs):
     """
@@ -91,15 +89,20 @@ def parse_dat(inputs):
 
             header = next(reader)  # Read the header row
             header = [col.strip() for col in header]
+            header_lower = [col.lower() for col in header]  # Convert header to lowercase for case-insensitive checks
 
             # Get the indices of the required columns
-            snp_index = get_column_index(header, 'SNP')
-            chrom_index = get_column_index(header, 'CHR')
-            pos_index = get_column_index(header, 'POS')
-            ref_index = get_column_index(header, 'A1')
-            alt_index = get_column_index(header, 'A2')
-            beta_index = get_column_index(header, 'BETA') if idx == 0 else get_column_index(header, 'OR')
-            se_index = get_column_index(header, 'SE')
+            snp_index = get_column_index(header_lower, 'SNP')
+            chrom_index = get_column_index(header_lower, 'CHR')
+            pos_index = get_column_index(header_lower, 'POS')
+            ref_index = get_column_index(header_lower, 'A1')
+            alt_index = get_column_index(header_lower, 'A2')
+            beta_index = get_column_index(header_lower, 'BETA')
+            or_index = get_column_index(header_lower, 'OR')
+            se_index = get_column_index(header_lower, 'SE')
+
+            if beta_index is None and or_index is None:
+                raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
 
             for row in reader:
                 snp = row[snp_index]
@@ -107,7 +110,8 @@ def parse_dat(inputs):
                 alt = row[alt_index]
                 chrom = row[chrom_index]
                 pos = row[pos_index]
-                beta = row[beta_index]
+                beta = row[beta_index] if beta_index is not None else None
+                or_value = row[or_index] if or_index is not None else None
                 se = row[se_index]
 
                 if snp not in data:
@@ -125,10 +129,16 @@ def parse_dat(inputs):
                 # Check if REF and ALT match, then update the data dictionary
                 if ref == data[snp]['REF'] and alt == data[snp]['ALT']:
                     if idx == 0:
+                        if or_value is not None:
+                            beta = np.log(float(or_value))
                         data[snp]['BETA1'] = beta
                         data[snp]['SE1'] = se
                     elif idx == 1:
-                        data[snp]['BETA2'] = np.log(float(beta))
+                        if or_value is not None:
+                            beta = np.log(float(or_value))
+                        elif beta is not None:
+                            beta = np.exp(float(beta))
+                        data[snp]['BETA2'] = beta
                         data[snp]['SE2'] = se
 
     return data
@@ -142,7 +152,7 @@ def merge_summary_stats():
     '''
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--n_files", type=str, help="Number of summary statistics to merge")
+    parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
     args = parser.parse_args()
@@ -160,7 +170,8 @@ def merge_summary_stats():
         writer = csv.writer(f, delimiter=',')
         writer.writerow(['SNP', 'CHR', 'POS', 'BETA1', 'SE1', 'BETA2', 'SE2'])
         for snp, values in merged_data.items():
-            writer.writerow([snp, values['CHROM'], values['POS'], values['BETA1'], values['SE1'], values['BETA2'], values['SE2']])
+            if values['BETA1'] is not None and values['BETA2'] is not None:
+                writer.writerow([snp, values['CHROM'], values['POS'], values['BETA1'], values['SE1'], values['BETA2'], values['SE2']])
 
 if __name__ == '__main__':
     merge_summary_stats()
