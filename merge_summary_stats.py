@@ -166,8 +166,16 @@ def merge_summary_stats():
     input_files = args.inputs
     output_file = args.output
 
-    # Call parse_dat with input_files
+        # Call parse_dat with input_files
     merged_data = parse_dat(input_files)
+
+    # Select only the required columns
+    columns_to_keep = ['SNP', 'CHR', 'POS']
+    for i in range(len(input_files.split(','))):
+        columns_to_keep.append('BETA{}'.format(i + 1))
+        columns_to_keep.append('SE{}'.format(i + 1))
+
+    merged_data = merged_data[columns_to_keep]
 
     # Write the merged data to the output file
     merged_data.to_csv(output_file, index=False)
