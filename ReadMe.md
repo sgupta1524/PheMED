@@ -1,5 +1,6 @@
 # PheMED
 Phenotypic Measurement of Effective Dilution
+A statistical method and scalable software, PheMED, Phenotypic Measurement of Effective Dilution, leverages GWAS summary statistics to quantify genome-wide effect size dilution across different phenotypic definitions and cohorts to quantify phenotypic misclassification across GWAS using only summary statistics.
 
 ### Dependencies
 After installing [Anaconda](https://store.continuum.io/cshop/anaconda/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html), running the following commands will create and activate an environment suitable to run PheMED.
