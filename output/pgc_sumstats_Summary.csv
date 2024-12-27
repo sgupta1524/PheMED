@@ -1,3 +1,0 @@
-Study,Reference,PheMED,CI_.025,CI_.975,P,NaiveCount,NaiveCount_qc,Normal,Normal_qc,Extreme Value Theory,Extreme Value Theory_qc
-Study 1,True,1.0,,,,,True,,True,,True
-Study 2,False,0.6300356864929197,0.5168711796402927,0.7614432871341701,2.770587108236189e-10,0.0,False,4.861162583580381e-09,False,2.770587108236189e-10,True
