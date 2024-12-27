@@ -1,5 +1,5 @@
 # PheMED
-Phenotypic Measurement of Effective Dilution
+Phenotypic Measurement of Effective Dilution <br>
 A statistical method and scalable software, PheMED, Phenotypic Measurement of Effective Dilution, leverages GWAS summary statistics to quantify genome-wide effect size dilution across different phenotypic definitions and cohorts to quantify phenotypic misclassification across GWAS using only summary statistics.
 
 ### Dependencies
