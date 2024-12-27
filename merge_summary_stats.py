@@ -1,7 +1,6 @@
-import csv
+import pandas as pd
 import numpy as np
 import argparse
-import re
 
 # Mapping of various column names to standardized names
 COLUMN_MAP = {
@@ -50,16 +49,52 @@ COLUMN_MAP = {
     'se_effect': 'SE'
 }
 
-def get_column_index(header, target):
+def get_column_name(header, target):
     """
-    Get the index of the target column in the header row.
+    Get the standardized column name from the header row.
     The header row is converted to lowercase to make the search case insensitive.
     """
-    header = [col.lower() for col in header]
+    header_lower = [col.lower() for col in header]
     for col_name, mapped_name in COLUMN_MAP.items():
-        if mapped_name == target and col_name in header:
-            return header.index(col_name)
+        if mapped_name == target and col_name in header_lower:
+            return col_name
     return None  # Return None if the target column is not found
+
+def process_chunk(chunk, idx):
+    """
+    Process a chunk of data, converting OR to BETA if necessary and renaming columns.
+    """
+    chunk.columns = [col.strip().lower() for col in chunk.columns]  # Convert header to lowercase for case-insensitive checks
+
+    # Get the required columns
+    snp_col = get_column_name(chunk.columns, 'SNP')
+    chrom_col = get_column_name(chunk.columns, 'CHR')
+    pos_col = get_column_name(chunk.columns, 'POS')
+    ref_col = get_column_name(chunk.columns, 'A1')
+    alt_col = get_column_name(chunk.columns, 'A2')
+    beta_col = get_column_name(chunk.columns, 'BETA')
+    or_col = get_column_name(chunk.columns, 'OR')
+    se_col = get_column_name(chunk.columns, 'SE')
+
+    if beta_col is None and or_col is None:
+        raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
+
+    # Convert OR to BETA if necessary
+    if or_col is not None:
+        chunk[beta_col] = np.log(chunk[or_col].astype(float))
+
+    # Rename columns to standardized names
+    chunk.rename(columns={
+        snp_col: 'SNP',
+        chrom_col: 'CHR',
+        pos_col: 'POS',
+        ref_col: 'REF',
+        alt_col: 'ALT',
+        beta_col: 'BETA{}'.format(idx + 1),
+        se_col: 'SE{}'.format(idx + 1)
+    }, inplace=True)
+
+    return chunk[['SNP', 'CHR', 'POS', 'REF', 'ALT', 'BETA{}'.format(idx + 1), 'SE{}'.format(idx + 1)]]
 
 def parse_dat(inputs):
     """
@@ -67,84 +102,50 @@ def parse_dat(inputs):
     and merge the files to include SNP, CHROM, POS, BETA1, SE1, BETA2, SE2 columns.
     """
     input_files = inputs.split(',')
-    data = {}
+    data_frames = []
+    snp_sets = []
 
     for idx, file in enumerate(input_files):
-        with open(file, 'r') as f:
-            # Determine the delimiter based on the first line of the file
-            first_line = f.readline()
-            if '\t' in first_line:
-                delimiter = '\t'
-            elif ',' in first_line:
-                delimiter = ','
+        chunks = pd.read_csv(file, sep=r'\s+|,|\t', engine='python', chunksize=100000)
+        processed_chunks = [process_chunk(chunk, idx) for chunk in chunks]
+        df = pd.concat(processed_chunks, ignore_index=True)
+        data_frames.append(df)
+        snp_sets.append(set(df['SNP']))
+
+        # Debug: Print the DataFrame before merging
+        print("DataFrame from file {} before merging:".format(file))
+        print(df)
+
+    # Merge data frames on SNP, CHR, POS, REF, and ALT using outer join
+    merged_df = data_frames[0]
+    for df in data_frames[1:]:
+        merged_df = pd.merge(merged_df, df, on=['SNP', 'CHR', 'POS', 'REF', 'ALT'], how='outer')
+
+    # Debug: Print the shape of the merged dataframe before filtering
+    print("Merged DataFrame shape before filtering:", merged_df.shape)
+    print(merged_df)
+
+    # Count SNPs based on their presence in the input files
+    snp_counts = {}
+    for snp_set in snp_sets:
+        for snp in snp_set:
+            if snp in snp_counts:
+                snp_counts[snp] += 1
             else:
-                delimiter = None  # Use regex for space delimiter
+                snp_counts[snp] = 1
 
-            f.seek(0)  # Reset file pointer to the beginning
+    # Filter SNPs that appear in at least two files
+    snps_to_keep = [snp for snp, count in snp_counts.items() if count >= 2]
+    merged_df = merged_df[merged_df['SNP'].isin(snps_to_keep)]
 
-            if delimiter:
-                reader = csv.reader(f, delimiter=delimiter)
-            else:
-                reader = (re.split(r'\s+', line.strip()) for line in f)
+    # Debug: Print the shape of the merged dataframe after filtering
+    print("Merged DataFrame shape after filtering:", merged_df.shape)
+    print(merged_df)
 
-            header = next(reader)  # Read the header row
-            header = [col.strip() for col in header]
-            header_lower = [col.lower() for col in header]  # Convert header to lowercase for case-insensitive checks
+    # Sort the merged dataframe by SNP, CHR, REF, and ALT
+    merged_df.sort_values(by=['SNP', 'CHR', 'REF', 'ALT'], inplace=True)
 
-            # Get the indices of the required columns
-            snp_index = get_column_index(header_lower, 'SNP')
-            chrom_index = get_column_index(header_lower, 'CHR')
-            pos_index = get_column_index(header_lower, 'POS')
-            ref_index = get_column_index(header_lower, 'A1')
-            alt_index = get_column_index(header_lower, 'A2')
-            beta_index = get_column_index(header_lower, 'BETA')
-            or_index = get_column_index(header_lower, 'OR')
-            se_index = get_column_index(header_lower, 'SE')
-
-            if beta_index is None and or_index is None:
-                raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
-
-            for row in reader:
-                snp = row[snp_index]
-                ref = row[ref_index]
-                alt = row[alt_index]
-                chrom = row[chrom_index]
-                pos = row[pos_index]
-                beta = row[beta_index] if beta_index is not None else None
-                or_value = row[or_index] if or_index is not None else None
-                se = row[se_index]
-
-                if snp not in data:
-                    data[snp] = {
-                        'CHROM': chrom,
-                        'POS': pos,
-                        'REF': ref,
-                        'ALT': alt,
-                        'BETA1': None,
-                        'SE1': None,
-                        'BETA2': None,
-                        'SE2': None
-                    }
-
-                # Check if REF and ALT match, then update the data dictionary
-                if ref == data[snp]['REF'] and alt == data[snp]['ALT']:
-                    if idx == 0:
-                        if or_value is not None:
-                            beta = np.log(float(or_value))
-                        data[snp]['BETA1'] = beta
-                        data[snp]['SE1'] = se
-                    elif idx == 1:
-                        if or_value is not None:
-                            beta = np.log(float(or_value))
-                        elif beta is not None:
-                            beta = np.exp(float(beta))
-                        data[snp]['BETA2'] = beta
-                        data[snp]['SE2'] = se
-
-    return data
-
-def filter_alleles(a):
-    '''Remove alleles that do not describe strand-unambiguous SNPs'''
+    return merged_df
 
 def merge_summary_stats():
     '''
@@ -166,12 +167,7 @@ def merge_summary_stats():
     merged_data = parse_dat(input_files)
 
     # Write the merged data to the output file
-    with open(output_file, 'w') as f:
-        writer = csv.writer(f, delimiter=',')
-        writer.writerow(['SNP', 'CHR', 'POS', 'BETA1', 'SE1', 'BETA2', 'SE2'])
-        for snp, values in merged_data.items():
-            if values['BETA1'] is not None and values['BETA2'] is not None:
-                writer.writerow([snp, values['CHROM'], values['POS'], values['BETA1'], values['SE1'], values['BETA2'], values['SE2']])
+    merged_data.to_csv(output_file, index=False)
 
 if __name__ == '__main__':
     merge_summary_stats()
