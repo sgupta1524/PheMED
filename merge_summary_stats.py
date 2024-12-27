@@ -173,6 +173,7 @@ def merge_summary_stats():
     columns_to_keep = ['SNP', 'CHR', 'POS']
     for i in range(len(input_files.split(','))):
         columns_to_keep.append('BETA{}'.format(i + 1))
+    for i in range(len(input_files.split(','))):
         columns_to_keep.append('SE{}'.format(i + 1))
 
     merged_data = merged_data[columns_to_keep]
