@@ -145,6 +145,9 @@ def parse_dat(inputs):
     # Sort the merged dataframe by SNP, CHR, REF, and ALT
     merged_df.sort_values(by=['SNP', 'CHR', 'REF', 'ALT'], inplace=True)
 
+    # Replace empty values with NA
+    merged_df.fillna('NA', inplace=True)
+
     return merged_df
 
 def merge_summary_stats():
