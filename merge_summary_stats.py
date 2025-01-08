@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import argparse
+import warnings
 
 # Mapping of various column names to standardized names
 COLUMN_MAP = {
@@ -159,27 +160,38 @@ def merge_summary_stats():
     parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
+    parser.add_argument("--log", type=str, help="path to log file")
     args = parser.parse_args()
 
     # Save the inputs to variables
     num_summary_stats = args.n_files
     input_files = args.inputs
     output_file = args.output
+    log_file = args.log
 
-        # Call parse_dat with input_files
+    # Call parse_dat with input_files
     merged_data = parse_dat(input_files)
-
+    log_entries = []
     # Select only the required columns
     columns_to_keep = ['SNP', 'CHR', 'POS']
-    for i in range(len(input_files.split(','))):
+    for i, file in enumerate(input_files.split(',')):
         columns_to_keep.append('BETA{}'.format(i + 1))
-    for i in range(len(input_files.split(','))):
         columns_to_keep.append('SE{}'.format(i + 1))
+        log_entries.append(f'BETA{i + 1} and SE{i + 1} come from {file}')
 
     merged_data = merged_data[columns_to_keep]
 
+    # Check if the merged data has less than 100 rows and issue a warning
+    if len(merged_data) < 100:
+        warnings.warn("The merged summary stats file has less than 100 rows. The GWAS stats might be from different builds.")
+
+
     # Write the merged data to the output file
     merged_data.to_csv(output_file, index=False)
+
+    # Write the log file
+    with open(log_file, 'w') as log:
+        log.write('\n'.join(log_entries))
 
 if __name__ == '__main__':
     merge_summary_stats()

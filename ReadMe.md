@@ -7,14 +7,34 @@ After installing [Anaconda](https://store.continuum.io/cshop/anaconda/) or [Mini
 conda env create --file environment.yml
 source activate phemed
 ```
+**Note** : There is no native build for python below 3.8 for Apple Silicon. As a workaround you can follow this steps to emulate x86_64 architecture in M1 Apple Silicon (ARM) and above.
+
+```
+## create and activate empty environment
+conda create -n py37
+conda activate py37
+
+## use x86_64 architecture channel(s)
+conda config --env --set subdir osx-64
+
+## install python, numpy, etc. (add more packages here...)
+conda install python=3.7.4
+
+## Create and activate an environment suitable to run PheMED
+conda env create --file environment.yml
+conda activate phemed
+```
+
 ### Running PheMED
-To prepare input file for PheMED (merge summary statistics) file before running PheMED. Please ensure the same refernce build for the summary stats files:
+To prepare input file for PheMED file before running PheMED using summary statistics of a sample. Please ensure the same reference build for the summary stats files:
 ```
 python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --output test --n_files 2
 ```
 - `--inputs` comma separated paths to input summary statistics files
 - `--n_files` Number of summary statistics to merge
 - `--output` path to output munged summary statistics file
+
+In case the summary statistics are from different reference genome builds, use [LiftOver](https://pmc.ncbi.nlm.nih.gov/articles/PMC10832354/) to convert genetic variants across assemblies.
 
 To run PheMED on the sample data, run the following command:
 ```
