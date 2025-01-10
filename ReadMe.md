@@ -1,5 +1,5 @@
 # PheMED
-A statistical method and scalable software, **PheMED**, _Phenotypic Measurement of Effective Dilution_, leverages GWAS summary statistics to quantify genome-wide effect size dilution across different phenotypic definitions and cohorts to quantify phenotypic misclassification across GWAS using only summary statistics.
+A statistical method and scalable software, **PheMED**, _Phenotypic Measurement of Effective Dilution_, leverages GWAS summary statistics to quantify genome-wide effect size dilution across different phenotypic definitions and cohorts
 
 ### Dependencies
 After installing [Anaconda](https://store.continuum.io/cshop/anaconda/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html), running the following commands will create and activate an environment suitable to run PheMED.
@@ -33,6 +33,7 @@ python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --outpu
 - `--inputs` comma separated paths to input summary statistics files
 - `--n_files` Number of summary statistics to merge
 - `--output` path to output munged summary statistics file
+- `--log` path to log file
 
 In case the summary statistics are from different reference genome builds, use [LiftOver](https://pmc.ncbi.nlm.nih.gov/articles/PMC10832354/) to convert genetic variants across assemblies.
 
