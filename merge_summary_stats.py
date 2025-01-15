@@ -193,7 +193,7 @@ def merge_summary_stats():
     parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
-    parser.add_argument("--log", type=str, help="path to log file", default = None)
+    parser.add_argument("--log", type=str, help="path to log file", default = "log")
     args = parser.parse_args()
 
     # Save the inputs to variables
