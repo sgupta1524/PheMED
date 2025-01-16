@@ -202,10 +202,10 @@ def merge_summary_stats():
 
     #remove n-files
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
-    parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
-    parser.add_argument("--log", type=str, help="path to log file", default="log")
-    parser.add_argument("--effect-allele-col", type=str, help="comma separated effect allele column", required = False, default="")
-    parser.add_argument("--non-effect-allele-col", type=str, help="comma separated non effect allele col", required = False, default="")
+    parser.add_argument("--output", type=str, help="path to output munged summary statistics file", default="output/merged_summary_stats.csv")
+    parser.add_argument("--log", type=str, help="path to log file", default="output/log")
+    parser.add_argument("--effect-allele-col", type=str, help="comma separated effect allele columns per file", required = False, default="")
+    parser.add_argument("--non-effect-allele-col", type=str, help="comma separated non effect allele columns per file", required = False, default="")
     args = parser.parse_args()
 
     # Save the inputs to variables

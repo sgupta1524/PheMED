@@ -1,5 +1,5 @@
 # PheMED
-A statistical method and scalable software, **PheMED**, _Phenotypic Measurement of Effective Dilution_, leverages GWAS summary statistics to quantify genome-wide effect size dilution across different phenotypic definitions and cohorts
+A statistical method and scalable software, **PheMED**, _Phenotypic Measurement of Effective Dilution_, leverages GWAS summary statistics to quantify genome-wide effect size dilution across different phenotypic definitions and cohorts to quantify phenotypic misclassification across GWAS using only summary statistics.
 
 ### Dependencies
 After installing [Anaconda](https://store.continuum.io/cshop/anaconda/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html), running the following commands will create and activate an environment suitable to run PheMED.
@@ -28,17 +28,13 @@ conda activate phemed
 ### Running PheMED
 To prepare input file for PheMED file before running PheMED using summary statistics of a sample. Please ensure the same reference build for the summary stats files:
 ```
-To merge multiple summary statistics files before running PheMED, use the following command:
+python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --output test
 ```
-python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --output test --n_files 2
-```
-- `--inputs` comma-separated paths to input summary statistics files
-- `--output` path to output munged summary statistics file
+- `--inputs` comma separated paths to input summary statistics files
+- `--output` path to output munged summary statistics file (optional)
 - `--log` path to log file (optional)
-- `--effect-allele-col` comma-separated effect allele column per file (optional)
-- `--non-effect-allele-col` comma-separated non-effect allele column per file (optional)
-
-The script will output a merged summary statistics file at the specified `--output` path. This file will be used as input for running PheMED.
+- `--effect-allele-col` comma separated effect allele columns per file (optional)
+- `--non-effect-allele-col` comma separated non effect allele columns per file (optional)
 
 In case the summary statistics are from different reference genome builds, use [LiftOver](https://pmc.ncbi.nlm.nih.gov/articles/PMC10832354/) to convert genetic variants across assemblies.
 
