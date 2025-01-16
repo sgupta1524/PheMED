@@ -6,7 +6,6 @@ import warnings
 
 
 def setup_logging(log_file):
-    print("here")
     # Create the root logger
     logger = logging.getLogger()
     logger.setLevel(logging.WARNING)  # Adjust the level to WARNING or lower
@@ -86,12 +85,13 @@ def get_column_name(header, target):
             return col_name
     return None  # Return None if the target column is not found
 
-def process_chunk(chunk, idx):
+def process_chunk(chunk, idx, effect_allele_col='A1', non_effect_allele_col='A2'):
     """
     Process a chunk of data, converting OR to BETA if necessary and renaming columns.
     """
     chunk.columns = [col.strip().lower() for col in chunk.columns]  # Convert header to lowercase for case-insensitive checks
-
+    #print(chunk.columns)
+    #print(non_effect_allele_col)
     # Get the required columns
     snp_col = get_column_name(chunk.columns, 'SNP')
     chrom_col = get_column_name(chunk.columns, 'CHR')
@@ -101,6 +101,10 @@ def process_chunk(chunk, idx):
     beta_col = get_column_name(chunk.columns, 'BETA')
     or_col = get_column_name(chunk.columns, 'OR')
     se_col = get_column_name(chunk.columns, 'SE')
+
+    #print(non_effect_allele_col)
+    #print(ref_col)
+    #print(alt_col)
 
     if beta_col is None and or_col is None:
         raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
@@ -123,18 +127,21 @@ def process_chunk(chunk, idx):
 
     return chunk[['SNP', 'CHR', 'POS', 'REF', 'ALT', 'BETA{}'.format(idx + 1), 'SE{}'.format(idx + 1)]]
 
-def parse_dat(inputs):
+def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     """
     Read input summary stats files in chunks, compare SNP, REF, and ALT columns,
     and merge the files to include SNP, CHROM, POS, BETA1, SE1, BETA2, SE2 columns.
     """
     input_files = inputs.split(',')
+    #print(input_files)
     data_frames = []
     snp_sets = []
 
-    for idx, file in enumerate(input_files):
+    for idx, (file, effect_allele_col, non_effect_allele_col) in enumerate(zip(input_files, effect_allele_cols_list, non_effect_allele_cols_list)):
         chunks = pd.read_csv(file, sep=r'\s+|,|\t', engine='python', chunksize=100000)
-        processed_chunks = [process_chunk(chunk, idx) for chunk in chunks]
+        #print("Effect allele column:", effect_allele_col)
+        #print("Non-effect allele column:", non_effect_allele_col)
+        processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
         df = pd.concat(processed_chunks, ignore_index=True)
         data_frames.append(df)
         # Create a combination of SNP, CHR, and POS
@@ -146,6 +153,9 @@ def parse_dat(inputs):
         #print(df)
 
     # Merge data frames on SNP, CHR, POS, REF, and ALT using outer join
+    if not data_frames:
+        raise ValueError("No data frames were created. Please check the input files and columns.")
+    
     merged_df = data_frames[0]
     for df in data_frames[1:]:
         merged_df = pd.merge(merged_df, df, on=['SNP', 'CHR', 'POS', 'REF', 'ALT'], how='outer')
@@ -189,23 +199,40 @@ def merge_summary_stats():
     '''
 
     parser = argparse.ArgumentParser()
+
+    #remove n-files
     parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
     parser.add_argument("--log", type=str, help="path to log file", default="log")
+    parser.add_argument("--effect-allele-col", type=str, help="comma separated effect allele column", required = False, default="")
+    parser.add_argument("--non-effect-allele-col", type=str, help="comma separated non effect allele col", required = False, default="")
     args = parser.parse_args()
 
     # Save the inputs to variables
-    num_summary_stats = args.n_files
     input_files = args.inputs
     output_file = args.output
     log_file = args.log
+    num_summary_stats = len(input_files.split(",")) 
+    effect_allele_cols = args.effect_allele_col
+    non_effect_allele_cols = args.non_effect_allele_col
+
+    num_summary_stats = len(input_files)  # Number of summary stats files
+
+    # Ensure effect_allele_cols and non_effect_allele_cols are of length num_summary_stats
+    if len(effect_allele_cols.split(",")) < num_summary_stats:
+        effect_allele_cols_list = effect_allele_cols.split(",")
+        effect_allele_cols_list += [""] * (num_summary_stats - len(effect_allele_cols_list))
+    
+    if len(non_effect_allele_cols.split(",")) < num_summary_stats:
+        non_effect_allele_cols_list = non_effect_allele_cols.split(",")
+        non_effect_allele_cols_list += [""] * (num_summary_stats - len(non_effect_allele_cols_list))
 
     # Setup logging to file
     setup_logging(log_file)
 
     # Call parse_dat with input_files
-    merged_data = parse_dat(input_files)
+    merged_data = parse_dat(input_files, effect_allele_cols_list, non_effect_allele_cols_list)
 
     log_entries = []
     # Select only the required columns
