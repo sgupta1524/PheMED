@@ -1,6 +1,24 @@
+import logging
 import pandas as pd
 import numpy as np
 import argparse
+import warnings
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+
+def setup_logging(log_file):
+    # Create a file handler
+    handler = logging.FileHandler(log_file)
+    handler.setLevel(logging.WARNING)
+    
+    # Create a logging format
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    
+    # Add the file handler to the logger
+    logger.addHandler(handler)
 
 # Mapping of various column names to standardized names
 COLUMN_MAP = {
@@ -111,11 +129,13 @@ def parse_dat(inputs):
         processed_chunks = [process_chunk(chunk, idx) for chunk in chunks]
         df = pd.concat(processed_chunks, ignore_index=True)
         data_frames.append(df)
-        snp_sets.append(set(df['SNP']))
+        # Create a combination of SNP, CHR, and POS
+        SNP_CHR_POS = df['SNP'].astype(str) + '_' + df['CHR'].astype(str) + '_' + df['POS'].astype(str)
+        snp_sets.append(set(SNP_CHR_POS))
 
         # Debug: Print the DataFrame before merging
-        print("DataFrame from file {} before merging:".format(file))
-        print(df)
+        #print("DataFrame from file {} before merging:".format(file))
+        #print(df)
 
     # Merge data frames on SNP, CHR, POS, REF, and ALT using outer join
     merged_df = data_frames[0]
@@ -123,8 +143,8 @@ def parse_dat(inputs):
         merged_df = pd.merge(merged_df, df, on=['SNP', 'CHR', 'POS', 'REF', 'ALT'], how='outer')
 
     # Debug: Print the shape of the merged dataframe before filtering
-    print("Merged DataFrame shape before filtering:", merged_df.shape)
-    print(merged_df)
+    #print("Merged DataFrame shape before filtering:", merged_df.shape)
+    #print(merged_df)
 
     # Count SNPs based on their presence in the input files
     snp_counts = {}
@@ -136,22 +156,22 @@ def parse_dat(inputs):
                 snp_counts[snp] = 1
 
     # Filter SNPs that appear in at least two files
-    snps_to_keep = [snp for snp, count in snp_counts.items() if count >= 2]
+    snps_to_keep = [snp.split('_')[0] for snp, count in snp_counts.items() if count >= 2]
     merged_df = merged_df[merged_df['SNP'].isin(snps_to_keep)]
-    # Group by SNP, CHR, POS, REF, and ALT and aggregate BETA and SE columns
-    merged_df = merged_df.groupby(['SNP', 'CHR', 'POS', 'REF', 'ALT']).agg(
-        {col: 'mean' for col in merged_df.columns if col.startswith('BETA') or col.startswith('SE')}
-    ).reset_index()
 
     # Debug: Print the shape of the merged dataframe after filtering
-    print("Merged DataFrame shape after filtering:", merged_df.shape)
-    print(merged_df)
+    #print("Merged DataFrame shape after filtering:", merged_df.shape)
+    #print(merged_df)
 
     # Sort the merged dataframe by SNP, CHR, REF, and ALT
     merged_df.sort_values(by=['SNP', 'CHR', 'REF', 'ALT'], inplace=True)
 
     # Replace empty values with NA
     merged_df.fillna('NA', inplace=True)
+
+    # Log a warning if the merged DataFrame is empty or has less than 100 rows
+    if len(merged_df) < 100:
+        logging.warning("The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.")
 
     return merged_df
 
@@ -164,27 +184,35 @@ def merge_summary_stats():
     parser.add_argument("--n_files", type=str, help="Number of summary statistics to munge")
     parser.add_argument("--inputs", type=str, help="comma separated paths to input summary statistics files")
     parser.add_argument("--output", type=str, help="path to output munged summary statistics file")
+    parser.add_argument("--log", type=str, help="path to log file", default="log")
     args = parser.parse_args()
 
     # Save the inputs to variables
     num_summary_stats = args.n_files
     input_files = args.inputs
     output_file = args.output
+    log_file = args.log
+
+    # Setup logging to file
+    setup_logging(log_file)
 
     # Call parse_dat with input_files
     merged_data = parse_dat(input_files)
 
+    log_entries = []
     # Select only the required columns
     columns_to_keep = ['SNP', 'CHR', 'POS']
-    for i in range(len(input_files.split(','))):
+    for i, file in enumerate(input_files.split(',')):
         columns_to_keep.append('BETA{}'.format(i + 1))
-    for i in range(len(input_files.split(','))):
         columns_to_keep.append('SE{}'.format(i + 1))
+        log_entries.append(f'BETA{i + 1} and SE{i + 1} come from {file}')
 
     merged_data = merged_data[columns_to_keep]
 
     # Write the merged data to the output file
     merged_data.to_csv(output_file, index=False)
+    with open(log_file, 'w') as log:
+        log.write('\n'.join(log_entries))
 
 if __name__ == '__main__':
     merge_summary_stats()
