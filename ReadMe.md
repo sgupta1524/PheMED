@@ -34,6 +34,8 @@ python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --outpu
 - `--n_files` Number of summary statistics to merge
 - `--output` path to output munged summary statistics file
 - `--log` path to log file
+- `effect-allele-col` comma separated effect allele column
+- `non-effect-allele-col` comma separated non effect allele column
 
 In case the summary statistics are from different reference genome builds, use [LiftOver](https://pmc.ncbi.nlm.nih.gov/articles/PMC10832354/) to convert genetic variants across assemblies.
 
