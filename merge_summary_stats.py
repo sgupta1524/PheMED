@@ -4,21 +4,29 @@ import numpy as np
 import argparse
 import warnings
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
 
 def setup_logging(log_file):
-    # Create a file handler
-    handler = logging.FileHandler(log_file)
-    handler.setLevel(logging.WARNING)
-    
-    # Create a logging format
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    handler.setFormatter(formatter)
-    
-    # Add the file handler to the logger
-    logger.addHandler(handler)
+    print("here")
+    # Create the root logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.WARNING)  # Adjust the level to WARNING or lower
+
+    # File handler for logging to a file
+    file_handler = logging.FileHandler(log_file, mode='a')  # Append to the log file
+    file_handler.setLevel(logging.WARNING)
+    file_formatter = logging.Formatter('\n%(asctime)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(file_formatter)
+
+    # Console handler for logging to stdout
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.WARNING)
+    console_formatter = logging.Formatter('\n%(levelname)s - %(message)s')  # Simpler format for console
+    console_handler.setFormatter(console_formatter)
+
+    # Add both handlers to the logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
 
 # Mapping of various column names to standardized names
 COLUMN_MAP = {
@@ -211,7 +219,7 @@ def merge_summary_stats():
 
     # Write the merged data to the output file
     merged_data.to_csv(output_file, index=False)
-    with open(log_file, 'w') as log:
+    with open(log_file, 'a') as log:
         log.write('\n'.join(log_entries))
 
 if __name__ == '__main__':
