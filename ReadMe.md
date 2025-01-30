@@ -38,7 +38,7 @@ python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --outpu
 - `--non-effect-allele-col` comma separated non effect allele columns per file (optional)
 
 In case the summary statistics are from different reference genome builds, use [LiftOver](https://pmc.ncbi.nlm.nih.gov/articles/PMC10832354/) to convert genetic variants across assemblies.
-
+The tool can be downloaded from [Link](http://hgdownload.soe.ucsc.edu/admin/exe/) by selecting your appropriate OS and searching for Liftover
 To run PheMED on the sample data, run the following command:
 ```
 python phemed.py --sum_stats data/sim_data.csv --n_studies 2 --out output/local_test
