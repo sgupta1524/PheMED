@@ -7,7 +7,7 @@ After installing [Anaconda](https://store.continuum.io/cshop/anaconda/) or [Mini
 conda env create --file environment.yml
 source activate phemed
 ```
-**Note** : There is no native build for python below 3.8 for Apple Silicon. As a workaround you can follow this steps to emulate x86_64 architecture in M1 Apple Silicon (ARM) and above.
+**Note** : There is no native build for python below 3.8 for Apple Silicon. As a workaround you can follow these steps to emulate x86_64 architecture in M1 Apple Silicon (ARM) and above.
 
 ```
 ## create and activate empty environment
