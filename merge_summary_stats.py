@@ -138,7 +138,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     snp_sets = []
 
     for idx, (file, effect_allele_col, non_effect_allele_col) in enumerate(zip(input_files, effect_allele_cols_list, non_effect_allele_cols_list)):
-        chunks = pd.read_csv(file, sep=r'\s+|,|\t', engine='python', chunksize=100000)
+        chunks = pd.read_csv(file, sep=r'\s+|,|\t', engine='python', chunksize=100000, comment='#')
         #print("Effect allele column:", effect_allele_col)
         #print("Non-effect allele column:", non_effect_allele_col)
         processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
