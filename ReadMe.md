@@ -26,7 +26,8 @@ conda activate phemed
 ```
 
 ### Running PheMED
-To prepare input file for PheMED file before running PheMED using summary statistics of a sample. Please ensure the same reference build for the summary stats files:
+To prepare input file for PheMED file before running PheMED using summary statistics of a sample. Please ensure the same reference build for the summary stats files. 
+**Note** : This step is optional. You can skip it if you have already merged summary stats.
 ```
 python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --output test
 ```
