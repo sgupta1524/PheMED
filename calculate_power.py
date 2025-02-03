@@ -135,7 +135,7 @@ def FIQT(pvals, min_p=1e-300):
     adj_pvals = multipletests(pvals, method="fdr_bh")[1]  # Apply FDR correction
     return adj_pvals
 
-def data_driven_correction(pvals,power, min_p=1e-300):
+def data_driven_pval_correction(pvals,power, min_p=1e-300):
     mean_power = power.mean()
     adj_pvals = np.divide(mean_power*pvals,power)
     return adj_pvals
