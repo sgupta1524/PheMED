@@ -9,6 +9,7 @@ from scipy.special import erfinv
 from scipy.special import erf
 
 from scipy.stats import norm
+from statsmodels.stats.multitest import multipletests
 
 def critical_value(alpha, tail='two-tailed'):
     """
@@ -128,35 +129,16 @@ def calculate_SE(n, maf, P):
     SE = 1 / math.sqrt(2 * P   * (1 - P)*(n * (1 - maf) * maf))
     return SE
 
-def FIQT(n,maf,P,beta, SE, min_p,alpha, tails):
+def FIQT(pvals, min_p=1e-300):
+    pvals = np.array(pvals)
+    pvals[pvals < min_p] = min_p  # Enforce minimum p-value
+    adj_pvals = multipletests(pvals, method="fdr_bh")[1]  # Apply FDR correction
+    return adj_pvals
 
-    SE = calculate_SE(n, maf, P)
-    # Calculate z-scores
-    z = beta/SE
-    # Calculate p-values
-    pvals = tails * stats.norm.sf(np.abs(z))
-    
-    # Replace p-values less than min_p with min_p
-    #Add this when dealing with range of pvalues
-    #pvals[pvals < min_p] = min_p
-    
-    # Adjust p-values using the FDR method
-    #Add this when dealing with range of pvalues
-    #_, adj_pvals, _, _ = benjamini_hochberg(pvals, alpha)
-    
-    # Calculate adjusted z-scores
-    mu_z = np.sign(z) * stats.norm.isf(pvals / tails)
-    #print(mu_z)
-    
-    # Replace adjusted z-scores for very large z-scores
-    threshold = stats.norm.isf(min_p / tails)
-    if np.abs(z) > threshold:
-        mu_z = z
-    
-    #Add this when dealing with range of pvalues
-    #mu_z[np.abs(z) > threshold] = z[np.abs(z) > threshold]
-    
-    return mu_z
+def data_driven_correction(pvals,power, min_p=1e-300):
+    mean_power = power.mean()
+    adj_pvals = np.divide(mean_power*pvals,power)
+    return adj_pvals
 
 def calculate_corrected_power(n,maf,P,beta,phi,min_p_val,alpha,tails):
     """
