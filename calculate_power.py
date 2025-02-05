@@ -10,6 +10,9 @@ from scipy.special import erf
 
 from scipy.stats import norm
 from statsmodels.stats.multitest import multipletests
+from numpy.random import Philox, Generator
+import pandas as pd
+from scipy.optimize import minimize
 
 def critical_value(alpha, tail='two-tailed'):
     """
@@ -135,12 +138,54 @@ def FIQT(pvals, min_p=1e-300):
     adj_pvals = multipletests(pvals, method="fdr_bh")[1]  # Apply FDR correction
     return adj_pvals
 
-def data_driven_pval_correction(pvals,power, min_p=1e-300):
-    mean_power = power.mean()
-    adj_pvals = np.divide(mean_power*pvals,power)
-    return adj_pvals
+def rep_count(weights, df = df):
+    weights = np.abs(weights)
+    weights = weights/np.sum(weights)
+    df_temp = df.copy(deep = True)
+    for i, var in enumerate(df_temp.columns):
+        df_temp[var] = 1*(df_temp[var] < .05*weights[i])
+    counts = df_temp.sum(axis = 1)
+    p = (counts >= 1).mean()
+    return p
 
-def calculate_corrected_power(n,maf,P,beta,phi,min_p_val,alpha,tails):
+def max_hits(weights, df = df):
+    weights = np.abs(weights)
+    weights = weights/np.sum(weights)
+    df_temp = df.copy(deep = True)
+    for i, var in enumerate(df_temp.columns):
+        df_temp[var] = 1*(df_temp[var] < .05*weights[i])
+    counts = df_temp.sum(axis = 1)
+    p = counts.sum()
+    return p
+
+def data_driven_weights(betas, ses, maximise_on='rep_count'):
+    """
+    Calculate data-driven weights for the given betas and standard errors.
+    
+    :param betas: List of beta values.
+    :param ses: List of standard errors corresponding to the betas.
+    :param maximise_on: Criterion to maximize ('rep_count' or 'max_hits').
+    :return: Optimized weights.
+    """
+    rg = Generator(Philox(key=1234))  # Use a fixed key for reproducibility
+    df = pd.DataFrame()
+    for i in range(len(betas)):
+        df['var_' + str(i)] = rg.normal(betas[i], ses[i], 200000)
+        df['var_' + str(i)] = df['var_' + str(i)] / ses[i]
+        df['var_' + str(i)] = df['var_' + str(i)].apply(lambda x: 1 - norm.cdf(x))
+    
+    if maximise_on == 'rep_count':
+        objective_function = lambda x: -1 * rep_count(x, df.loc[0:100000])
+    elif maximise_on == 'max_hits':
+        objective_function = lambda x: -1 * max_hits(x, df.loc[0:100000])
+    else:
+        raise ValueError("maximise_on must be either 'rep_count' or 'max_hits'")
+    
+    optimizer = minimize(objective_function, np.array([1/len(betas)] * len(betas)), 
+                         options={'maxiter': 1000}, method='Nelder-Mead')
+    return optimizer.x
+
+def calculate_corrected_power(n,maf,P,beta,phi,min_p_val,alpha,tails, correction_method='FIQT'):
     """
     Calculate the power of a GWAS study 
     n = sample size
@@ -153,15 +198,23 @@ def calculate_corrected_power(n,maf,P,beta,phi,min_p_val,alpha,tails):
     if maf is None and SE is None:
         raise ValueError("Either 'maf' or 'SE' must be provided.")
     
-    # Calculate Standard error based on a logistic model if not provided
-    if SE is None:
-        SE = calculate_SE(n, maf, P)
+    adj_pval = FIQT(pvals, min_p=min_p_val)
+    if tail == 'two-tailed':
+        # For a two-tailed test, divide the p-value by 2
+        adj_pval /= 2
+        # Calculate the z-value for the upper tail
+        z_value = norm.ppf(1 - adj_pval)
+    elif tail == 'left-tailed':
+        # For a left-tailed test, calculate the z-value directly
+        z_value = norm.ppf(adj_pval)
+    elif tail == 'right-tailed':
+        # For a right-tailed test, calculate the z-value for the upper tail
+        z_value = norm.ppf(1 - adj_pval)
+    else:
+        raise ValueError("Invalid value for 'tail'. Choose from 'two-tailed', 'left-tailed', or 'right-tailed'.")
     
-    z = beta/SE
-    corrected_z = FIQT(n,maf,P,beta, SE, min_p_val,alpha, tails)
-    NCP = (corrected_z/phi) ** 2
-    # Calculate the power of the study
-    power = 1 - stats.norm.cdf(critical_value(alpha, tails) - np.divide(beta / float(phi), SE))
+
+    power = 1 - stats.norm.cdf(critical_value(alpha, tails) - z_value/phi)
     print(power)
 
 def generate_plot(power, corrected_power, samples, beta, alpha, maf, phi, P, output_file):
