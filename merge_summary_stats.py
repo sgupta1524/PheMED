@@ -34,6 +34,7 @@ COLUMN_MAP = {
     'snpid': 'SNP',
     'rs': 'SNP',
     'rsid': 'SNP',
+    'rsids': 'SNP',
     'rs_number': 'SNP',
     'rs_numbers': 'SNP',
     'chr': 'CHR',
@@ -42,6 +43,10 @@ COLUMN_MAP = {
     'chromosome_number': 'CHR',
     'hg18chr': 'CHR',
     'hg19chr': 'CHR',
+    '#chr': 'CHR',
+    '#chrom': 'CHR',
+    '#Chrom': 'CHR',
+    '#Chr': 'CHR',
     'bp': 'POS',
     'position': 'POS',
     'pos': 'POS',
@@ -51,6 +56,7 @@ COLUMN_MAP = {
     'effect_allele': 'A1',
     'reference_allele': 'A1',
     'inc_allele': 'A1',
+    'ref': 'A1',
     'ea': 'A1',
     'a2': 'A2',
     'allele2': 'A2',
@@ -59,6 +65,7 @@ COLUMN_MAP = {
     'non_effect_allele': 'A2',
     'dec_allele': 'A2',
     'nea': 'A2',
+    'alt': 'A2',
     'beta': 'BETA',
     'effect': 'BETA',
     'effects': 'BETA',
@@ -71,7 +78,8 @@ COLUMN_MAP = {
     'se_or': 'SE',
     'se_log_odds': 'SE',
     'se_effects': 'SE',
-    'se_effect': 'SE'
+    'se_effect': 'SE',
+    'sebeta': 'SE'
 }
 
 def get_column_name(header, target):
@@ -105,6 +113,11 @@ def process_chunk(chunk, idx, effect_allele_col='A1', non_effect_allele_col='A2'
     #print(non_effect_allele_col)
     #print(ref_col)
     #print(alt_col)
+    #print(chunk.columns)
+    #print(snp_col)
+    #print(chrom_col)
+    #print(beta_col)
+    #print(or_col)
 
     if beta_col is None and or_col is None:
         raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
@@ -138,7 +151,19 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     snp_sets = []
 
     for idx, (file, effect_allele_col, non_effect_allele_col) in enumerate(zip(input_files, effect_allele_cols_list, non_effect_allele_cols_list)):
-        chunks = pd.read_csv(file, sep=r'\s+|,|\t', engine='python', chunksize=100000, comment='#')
+        logging.info(f"Processing file {file}")
+        print(f"Processing file {file}")
+        # Read the first few lines to determine the separator
+        with open(file, 'r') as f:
+            first_line = f.readline()
+            if ',' in first_line:
+                sep = ','
+            elif '\t' in first_line:
+                sep = '\t'
+            else:
+                sep = r'\s+'
+
+        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=100000, comment='##')
         #print("Effect allele column:", effect_allele_col)
         #print("Non-effect allele column:", non_effect_allele_col)
         processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
@@ -173,6 +198,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
             else:
                 snp_counts[snp] = 1
 
+    #TODO: Merge process can be made faster
     # Filter SNPs that appear in at least two files
     snps_to_keep = [snp.split('_')[0] for snp, count in snp_counts.items() if count >= 2]
     merged_df = merged_df[merged_df['SNP'].isin(snps_to_keep)]
@@ -183,7 +209,8 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
 
     # Sort the merged dataframe by SNP, CHR, REF, and ALT
     merged_df.sort_values(by=['SNP', 'CHR', 'REF', 'ALT'], inplace=True)
-
+    # Free up memory by deleting other data frames
+    del data_frames
     # Replace empty values with NA
     merged_df.fillna('NA', inplace=True)
 
