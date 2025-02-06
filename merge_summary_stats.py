@@ -93,7 +93,7 @@ def get_column_name(header, target):
             return col_name
     return None  # Return None if the target column is not found
 
-def process_chunk(chunk, idx, effect_allele_col='A1', non_effect_allele_col='A2'):
+def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
     """
     Process a chunk of data, converting OR to BETA if necessary and renaming columns.
     """
@@ -104,8 +104,14 @@ def process_chunk(chunk, idx, effect_allele_col='A1', non_effect_allele_col='A2'
     snp_col = get_column_name(chunk.columns, 'SNP')
     chrom_col = get_column_name(chunk.columns, 'CHR')
     pos_col = get_column_name(chunk.columns, 'POS')
-    ref_col = get_column_name(chunk.columns, 'A1')
-    alt_col = get_column_name(chunk.columns, 'A2')
+    if effect_allele_col != "":
+        ref_col = get_column_name(chunk.columns, "A1")
+    else:
+        ref_col = effect_allele_col
+    if non_effect_allele_col != "":
+        alt_col = get_column_name(chunk.columns, "A2")
+    else:
+        alt_col = non_effect_allele_col
     beta_col = get_column_name(chunk.columns, 'BETA')
     or_col = get_column_name(chunk.columns, 'OR')
     se_col = get_column_name(chunk.columns, 'SE')
@@ -113,11 +119,14 @@ def process_chunk(chunk, idx, effect_allele_col='A1', non_effect_allele_col='A2'
     #print(non_effect_allele_col)
     #print(ref_col)
     #print(alt_col)
-    #print(chunk.columns)
-    #print(snp_col)
-    #print(chrom_col)
-    #print(beta_col)
-    #print(or_col)
+    # print(chunk.columns)
+    # print(type(snp_col))
+    # print(type(chrom_col))
+    # print(type(beta_col))
+    # print(type(pos_col))
+    # print(type(ref_col))
+    # print(type(alt_col))
+    # print(type(or_col))
 
     if beta_col is None and or_col is None:
         raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
@@ -182,12 +191,14 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
         raise ValueError("No data frames were created. Please check the input files and columns.")
     
     merged_df = data_frames[0]
+    merged_df = merged_df.astype(str)
     for df in data_frames[1:]:
+        df = df.astype(str)
         merged_df = pd.merge(merged_df, df, on=['SNP', 'CHR', 'POS', 'REF', 'ALT'], how='outer')
-
+        print(merged_df)
     # Debug: Print the shape of the merged dataframe before filtering
-    #print("Merged DataFrame shape before filtering:", merged_df.shape)
-    #print(merged_df)
+    # print("Merged DataFrame shape before filtering:", merged_df.shape)
+    # print(merged_df)
 
     # Count SNPs based on their presence in the input files
     snp_counts = {}
