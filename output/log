@@ -1,3 +1,27 @@
 BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/MVP_EUR_SCZ
 BETA2 and SE2 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/summary_stats_release_finngen_R12_F5_SCHIZOTYP
+BETA3 and SE3 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/output_file_2.tsvBETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/MVP_EUR_SCZ
+BETA2 and SE2 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/summary_stats_release_finngen_R12_F5_SCHIZOTYP
 BETA3 and SE3 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/output_file_2.tsv
+2025-02-06 22:02:38,231 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:06:15,015 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:06:42,447 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:09:44,066 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:10:28,026 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:11:06,542 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:11:44,225 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:23:12,759 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_MVP_EUR_SCZ
+2025-02-06 22:24:08,999 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:24:37,477 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP
+2025-02-06 22:24:50,313 - WARNING - The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.
+BETA1 and SE1 come from /Users/sonali.gupta/Downloads/SCZ_sum_stats/test_summary_stats_release_finngen_R12_F5_SCHIZOTYP

@@ -104,21 +104,21 @@ def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
     snp_col = get_column_name(chunk.columns, 'SNP')
     chrom_col = get_column_name(chunk.columns, 'CHR')
     pos_col = get_column_name(chunk.columns, 'POS')
-    if effect_allele_col != "":
+    if effect_allele_col == "":
         ref_col = get_column_name(chunk.columns, "A1")
     else:
-        ref_col = effect_allele_col
-    if non_effect_allele_col != "":
+        ref_col = effect_allele_col.lower()
+    if non_effect_allele_col == "":
         alt_col = get_column_name(chunk.columns, "A2")
     else:
-        alt_col = non_effect_allele_col
+        alt_col = non_effect_allele_col.lower()
     beta_col = get_column_name(chunk.columns, 'BETA')
     or_col = get_column_name(chunk.columns, 'OR')
     se_col = get_column_name(chunk.columns, 'SE')
 
     #print(non_effect_allele_col)
-    #print(ref_col)
-    #print(alt_col)
+    #print(effect_allele_col,ref_col)
+    #print(non_effect_allele_col,alt_col)
     # print(chunk.columns)
     # print(type(snp_col))
     # print(type(chrom_col))
@@ -136,6 +136,7 @@ def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
         chunk[or_col] = pd.to_numeric(chunk[or_col], errors='coerce')
         chunk[beta_col] = np.log(chunk[or_col])
 
+    #print(chunk)
     # Rename columns to standardized names
     chunk.rename(columns={
         snp_col: 'SNP',
@@ -146,6 +147,8 @@ def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
         beta_col: 'BETA{}'.format(idx + 1),
         se_col: 'SE{}'.format(idx + 1)
     }, inplace=True)
+    #print(snp_col,ref_col, alt_col)
+    #print(chunk)
 
     return chunk[['SNP', 'CHR', 'POS', 'REF', 'ALT', 'BETA{}'.format(idx + 1), 'SE{}'.format(idx + 1)]]
 
@@ -172,10 +175,11 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
             else:
                 sep = r'\s+'
 
-        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=100000, comment='##')
+        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=10, comment='##')
         #print("Effect allele column:", effect_allele_col)
         #print("Non-effect allele column:", non_effect_allele_col)
         processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
+        #print(processed_chunks)
         df = pd.concat(processed_chunks, ignore_index=True)
         data_frames.append(df)
         # Create a combination of SNP, CHR, and POS
