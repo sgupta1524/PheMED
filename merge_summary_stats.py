@@ -175,7 +175,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
             else:
                 sep = r'\s+'
 
-        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=10, comment='##')
+        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=1000000, comment='##')
         #print("Effect allele column:", effect_allele_col)
         #print("Non-effect allele column:", non_effect_allele_col)
         processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
@@ -199,7 +199,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     for df in data_frames[1:]:
         df = df.astype(str)
         merged_df = pd.merge(merged_df, df, on=['SNP', 'CHR', 'POS', 'REF', 'ALT'], how='outer')
-        print(merged_df)
+        #print(merged_df)
     # Debug: Print the shape of the merged dataframe before filtering
     # print("Merged DataFrame shape before filtering:", merged_df.shape)
     # print(merged_df)
