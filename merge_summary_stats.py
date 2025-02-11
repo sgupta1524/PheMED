@@ -4,6 +4,9 @@ import numpy as np
 import argparse
 import warnings
 
+pd.set_option('display.max_columns', None)  # show all columns
+pd.set_option('display.width', 1000)
+pd.set_option('display.max_rows', None)
 
 def setup_logging(log_file):
     # Create the root logger
@@ -132,9 +135,13 @@ def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
         raise ValueError("Either 'beta' or 'OR' column must exist in the input files.")
 
     # Convert OR to BETA if necessary
-    if or_col is not None:
+    if beta_col is None and or_col is not None:
         chunk[or_col] = pd.to_numeric(chunk[or_col], errors='coerce')
-        chunk[beta_col] = np.log(chunk[or_col])
+        #print(chunk[or_col])
+        chunk[beta_col] = np.log(pd.to_numeric(chunk[or_col], errors='coerce'))
+        #print(chunk[beta_col])
+        #print("####################")
+        chunk[se_col] = chunk[se_col] / chunk[or_col]
 
     #print(chunk)
     # Rename columns to standardized names
@@ -149,6 +156,8 @@ def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
     }, inplace=True)
     #print(snp_col,ref_col, alt_col)
     #print(chunk)
+    # Print the row where SNP = rs1417896409
+    #print(chunk[chunk['SNP'] == 'rs1417896409'])
 
     return chunk[['SNP', 'CHR', 'POS', 'REF', 'ALT', 'BETA{}'.format(idx + 1), 'SE{}'.format(idx + 1)]]
 
@@ -175,7 +184,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
             else:
                 sep = r'\s+'
 
-        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=1000000, comment='##')
+        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=100, comment='##')
         #print("Effect allele column:", effect_allele_col)
         #print("Non-effect allele column:", non_effect_allele_col)
         processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
@@ -194,12 +203,18 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     if not data_frames:
         raise ValueError("No data frames were created. Please check the input files and columns.")
     
+    #print(data_frames)
+    print("Merging data frames...")
     merged_df = data_frames[0]
     merged_df = merged_df.astype(str)
     for df in data_frames[1:]:
         df = df.astype(str)
+        #df = df.drop_duplicates(subset=['SNP', 'CHR', 'POS', 'REF', 'ALT'])
         merged_df = pd.merge(merged_df, df, on=['SNP', 'CHR', 'POS', 'REF', 'ALT'], how='outer')
-        #print(merged_df)
+    #print(merged_df)
+    # Print the rows where SNP = rs1417896409
+    #print("*****************printing merged*****************")
+    #print(merged_df[merged_df['SNP'] == 'rs1417896409'])
     # Debug: Print the shape of the merged dataframe before filtering
     # print("Merged DataFrame shape before filtering:", merged_df.shape)
     # print(merged_df)
@@ -217,7 +232,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     # Filter SNPs that appear in at least two files
     snps_to_keep = [snp.split('_')[0] for snp, count in snp_counts.items() if count >= 2]
     merged_df = merged_df[merged_df['SNP'].isin(snps_to_keep)]
-
+    #print(merged_df[merged_df['SNP'] == 'rs1417896409'])
     # Debug: Print the shape of the merged dataframe after filtering
     #print("Merged DataFrame shape after filtering:", merged_df.shape)
     #print(merged_df)
@@ -233,6 +248,14 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     if len(merged_df) < 100:
         logging.warning("The merged summary stats file has less than 100 rows. The GWAS stats might be from different reference genome builds.")
 
+    #print(merged_df[merged_df['SNP'] == 'rs1417896409'])
+    #print(merged_df[['BETA1']])
+    #merged_df = merged_df.groupby(['SNP', 'CHR', 'POS', 'REF', 'ALT'], as_index=False).agg(
+    #lambda x: x.dropna().iloc[0] if not x.dropna().empty else np.nan
+#)
+    #print(merged_df[merged_df['SNP'] == 'rs1417896409'])
+    #print("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+    #print(merged_df[['ALT']])
     return merged_df
 
 def merge_summary_stats():
@@ -283,6 +306,7 @@ def merge_summary_stats():
         columns_to_keep.append('SE{}'.format(i + 1))
         log_entries.append(f'BETA{i + 1} and SE{i + 1} come from {file}')
 
+    ########Needs to be uncommented########
     merged_data = merged_data[columns_to_keep]
 
     # Write the merged data to the output file
