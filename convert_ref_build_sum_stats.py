@@ -1,19 +1,42 @@
 import pandas as pd
 from pyliftover import LiftOver
+import argparse
 
-# Load data
-df = pd.read_csv("/Users/sonali.gupta/Downloads/SCZ_sum_stats/daner_PGC_SCZ52_0513a.hq2", sep = "\t")
+def main():
+    # Set up argument parser
+    parser = argparse.ArgumentParser(description="Convert reference build of summary statistics using LiftOver.")
+    parser.add_argument("--input", type=str, required=True, help="Path to the input summary statistics file.")
+    parser.add_argument("--output", type=str, required=True, help="Path to the output file with converted coordinates.")
+    parser.add_argument("--chain", type=str, required=True, help="Path to the chain file for the conversion.")
+    parser.add_argument("--chrom", type=int, default=0, help="Chromosome position number in the input file.")
+    parser.add_argument("--pos", type=int, default=2, help="Base pair column position number in the input file.")
+    parser.add_argument("--chromosome-col-has-chr", type=bool, default=False, help="Indicate if the chromosome column has chr prefix.")
+    args = parser.parse_args()
 
-# Create LiftOver object
-lo = LiftOver("hg19ToHg38.over.chain.gz")
+    # Load data
+    df = pd.read_csv(args.input, sep="\t")
+    chain = args.chain
+    chrom = args.chrom
+    pos = args.pos
 
-# Perform liftover
-with open("/Users/sonali.gupta/Downloads/SCZ_sum_stats/lifted_daner_PGC_SCZ52_0513a.hq2", "w") as outfile:
-    # Write header
-    outfile.write("\t".join(df.columns) + "\tnew_CHROM\tnew_BP\n")
-    
-    for index, row in df.iterrows():
-        result = lo.convert_coordinate("chr" + str(row.iloc[0]), row.iloc[2])
-        if result:
-            new_chrom, new_bp = result[0][0], result[0][1]
-            outfile.write("\t".join(map(str, row)) + f"\t{new_chrom}\t{new_bp}\n")
+    # Create LiftOver object
+    lo = LiftOver(chain)
+
+    # Perform liftover
+    with open(args.output, "w") as outfile:
+        # Write header
+        outfile.write("\t".join(df.columns))
+        outfile.write("\n")
+        
+        for index, row in df.iterrows():
+            if args.chromosome_col_has_chr:
+                result = lo.convert_coordinate(str(row.iloc[chrom]), row.iloc[pos])
+            else:
+                result = lo.convert_coordinate("chr" + str(row.iloc[chrom]), row.iloc[pos])
+            if result:
+                new_bp = result[0][1]
+                row.iloc[pos] = new_bp  # Update position
+            outfile.write("\t".join(map(str, row)) + "\n")
+
+if __name__ == "__main__":
+    main()

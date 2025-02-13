@@ -141,7 +141,6 @@ def process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col):
         chunk[beta_col] = np.log(pd.to_numeric(chunk[or_col], errors='coerce'))
         #print(chunk[beta_col])
         #print("####################")
-        chunk[se_col] = chunk[se_col] / chunk[or_col]
 
     #print(chunk)
     # Rename columns to standardized names
@@ -184,7 +183,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
             else:
                 sep = r'\s+'
 
-        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=100, comment='##')
+        chunks = pd.read_csv(file, sep=sep, engine='python', chunksize=100000, comment='##')
         #print("Effect allele column:", effect_allele_col)
         #print("Non-effect allele column:", non_effect_allele_col)
         processed_chunks = [process_chunk(chunk, idx, effect_allele_col, non_effect_allele_col) for chunk in chunks]
@@ -232,7 +231,7 @@ def parse_dat(inputs, effect_allele_cols_list, non_effect_allele_cols_list):
     # Filter SNPs that appear in at least two files
     snps_to_keep = [snp.split('_')[0] for snp, count in snp_counts.items() if count >= 2]
     merged_df = merged_df[merged_df['SNP'].isin(snps_to_keep)]
-    #print(merged_df[merged_df['SNP'] == 'rs1417896409'])
+    print(merged_df[merged_df['SNP'] == 'rs1417896409'])
     # Debug: Print the shape of the merged dataframe after filtering
     #print("Merged DataFrame shape after filtering:", merged_df.shape)
     #print(merged_df)
