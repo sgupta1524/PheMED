@@ -26,19 +26,6 @@ conda activate phemed
 ```
 
 ### Running PheMED
-To prepare input file for PheMED file before running PheMED using summary statistics of a sample. Please ensure the same reference build for the summary stats files. 
-**Note** : This step is optional. You can skip it if you have already merged summary stats.
-```
-python merge_summary_stats.py --inputs "data/sum_stats1,data/sum_stats2" --output test
-```
-- `--inputs` comma separated paths to input summary statistics files
-- `--output` path to output munged summary statistics file (optional)
-- `--log` path to log file (optional)
-- `--effect-allele-col` comma separated effect allele columns per file (optional)
-- `--non-effect-allele-col` comma separated non effect allele columns per file (optional)
-
-In case the summary statistics are from different reference genome builds, use [LiftOver](https://pmc.ncbi.nlm.nih.gov/articles/PMC10832354/) to convert genetic variants across assemblies.
-The tool can be downloaded from [Link](http://hgdownload.soe.ucsc.edu/admin/exe/) by selecting your appropriate OS and searching for Liftover </br>
 
 To run PheMED on the sample data, run the following command:
 ```
