@@ -8,7 +8,7 @@ def main():
     parser.add_argument("--input", type=str, required=True, help="Path to the input summary statistics file.")
     parser.add_argument("--output", type=str, required=True, help="Path to the output file with converted coordinates.")
     parser.add_argument("--chain", type=str, required=True, help="Path to the chain file for the conversion.")
-    parser.add_argument("--chrom", type=int, default=0, help="Chromosome position number in the input file.")
+    parser.add_argument("--chrom", type=int, default=0, help="Chromosome column number in the input file.")
     parser.add_argument("--pos", type=int, default=2, help="Base pair column position number in the input file.")
     parser.add_argument("--chromosome-col-has-chr", type=bool, default=False, help="Indicate if the chromosome column has chr prefix.")
     args = parser.parse_args()
