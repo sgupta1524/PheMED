@@ -1,24 +1,29 @@
 import pandas as pd
 import argparse
+import os
+import re
+import numpy as np
 
 ##TODO:
 """
-1. if alleles are not specified by user - done, just check the output results thoroughly
-2. Merging more than 2 files
+1. if alleles are not specified by user - done, just check the output results thoroughly, check the correlation checking part
+2. Merging more than 2 files - check merging by adhoc results
 3. odds ratio instead of beta
 4. CI instead of SE
 5. Z scores
+6. Add warnings and edge cases - I am here now
 """
-
 
 def col_lookup(col_to_lookup, columns):
     # Check if any of the values corresponding to col_to_lookup key from reverse mapping exist in columns (case-insensitive)
     reverse_mapping = {
-        'SNP': ['SNP', 'MARKERNAME', 'SNPID', 'RS', 'RSID', 'RS_NUMBER', 'RS_NUMBERS', 'RSIDS'],
+        'SNP': ['SNP', 'MARKERNAME', 'SNPID', 'RS', 'RSID', 'RS_NUMBER', 'RS_NUMBERS', 'RSIDS', 'SNP_ID'],
         'CHR': ['CHR', 'CHROM', 'CHROMOSOME', '#CHR', '#CHROM'],
         'POS': ['POS', 'BP', 'POSITION'],
         'BETA': ['BETA', 'EFFECT', 'EFFECT_SIZE', 'EFFECT_ESTIMATE'],
+        'OR' : ['OR', 'ODDS_RATIO', 'ODDS', 'ODDSRATIO'],
         'SE': ['SE', 'STDERR', 'STANDARD_ERROR', 'SEBETA', 'STD_ERR'],
+        'CI': ['CI', 'CONFIDENCE_INTERVAL', 'CICONFIDENCE', 'CICONF'],
         'ALLELE': ['ALLELE', 'ALLELES', 'MINOR_ALLELE', 'MAJOR_ALLELE', 'MINOR', 'MAJOR', 'A1', 'A2', 'ALLELE1', 'ALLELE2', 'REF', 'ALT', 'REF_ALLELE', 'ALT_ALLELE', 'EFFECT_ALLELE', 'OTHER_ALLELE', 'EA', 'OA']
     }
     values = reverse_mapping.get(col_to_lookup, [])
@@ -30,9 +35,166 @@ def col_lookup(col_to_lookup, columns):
                 return value.lower()
     return None
 
+def merge_of_merge(merged_list):
+    """
+    Outer join of the elements of merged_list, which are dataframes.
+    If the columns are not present in the dataframe, they will be filled with NaN.
+    """
+    merged = pd.merge(merged_list[0], merged_list[1], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', ''))
+    for i in range(2, len(merged_list)):
+        merged = pd.merge(merged, merged_list[i], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', ''))
+        print(merged.head())
+    print(merged.columns)
+    return fix_colnames(merged)
 
+def fix_colnames(df):
+    def extract_suffix(col_name):
+        if col_name.startswith('STUDY') or col_name.startswith('SE'):
+            # Remove STUDY/SE prefix and _dup suffix if present
+            suffix = re.sub(r'^(STUDY|SE)', '', col_name)
+            suffix = re.sub(r'_dup$', '', suffix)
+            return suffix
+        return col_name
 
-def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2):
+    # Get all column names
+    cols = df.columns.tolist()
+
+    # Separate STUDY and SE columns
+    study_cols = [col for col in cols if col.startswith('STUDY')]
+    se_cols = [col for col in cols if col.startswith('SE')]
+
+    # Group columns by suffix
+    study_groups = {}
+    se_groups = {}
+
+    for col in study_cols:
+        suffix = extract_suffix(col)
+        if suffix not in study_groups:
+            study_groups[suffix] = []
+        study_groups[suffix].append(col)
+
+    for col in se_cols:
+        suffix = extract_suffix(col)
+        if suffix not in se_groups:
+            se_groups[suffix] = []
+        se_groups[suffix].append(col)
+
+    for suffix, cols in study_groups.items():
+        print(f"  {suffix}: {cols}")
+
+    for suffix, cols in se_groups.items():
+        print(f"  {suffix}: {cols}")
+
+    # Combine columns within each group and use simple naming
+    # Create new dataframe with combined columns
+    result_df = df[['SNP', 'CHR', 'POS']].copy()
+
+    # Combine STUDY columns with numbered names
+    study_counter = 1
+    for suffix, cols in study_groups.items():
+        if len(cols) > 1:   
+            # Take first non-null value across duplicate columns
+            result_df[f'STUDY{study_counter}'] = df[cols].bfill(axis=1).iloc[:, 0]
+        else:
+            result_df[f'STUDY{study_counter}'] = df[cols[0]]
+        study_counter += 1
+
+    # Combine SE columns with numbered names
+    se_counter = 1
+    for suffix, cols in se_groups.items():
+        if len(cols) > 1:
+            # Take first non-null value across duplicate columns
+            result_df[f'SE{se_counter}'] = df[cols].bfill(axis=1).iloc[:, 0]
+        else:
+            result_df[f'SE{se_counter}'] = df[cols[0]]
+        se_counter += 1
+
+    # Reorder columns to group STUDY and SE together
+    study_cols = [col for col in result_df.columns if col.startswith('STUDY')]
+    se_cols = [col for col in result_df.columns if col.startswith('SE')]
+    ordered_cols = ['SNP', 'CHR', 'POS'] + study_cols + se_cols
+    result_df = result_df[ordered_cols]
+    print(f"New columns: {result_df.columns.tolist()}")
+    return result_df
+
+def parse_or_ci_to_se(ci_string):
+   if pd.isna(ci_string) or ci_string == '':
+        return np.nan
+   try:
+        # Split by comma and convert to float
+        ci_lower, ci_upper = map(float, ci_string.split(','))
+        
+        # Convert to SE (assuming 95% CI, z = 1.96)
+        se = (ci_upper - ci_lower) / (2 * 1.96)
+        
+        return se
+   except:
+        return np.nan
+
+def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2, 
+               Z1=None, Z2=None, MAF1=None, MAF2=None, Ncases1=None, Ncases2=None, Ncontrols1=None, Ncontrols2=None):
+
+    gwas1_filename = os.path.basename(gwas1)
+    gwas2_filename = os.path.basename(gwas2)
+    gwas1 = pd.read_csv(gwas1, sep='\t', low_memory=False)
+    gwas2 = pd.read_csv(gwas2, sep='\t', low_memory=False)
+
+    #if SNP, BETA and SE are none do a lookup
+    SNP1 = col_lookup('SNP', gwas1.columns) if SNP1 is None or SNP1.strip() == "" else SNP1
+    SNP2 = col_lookup('SNP', gwas2.columns) if SNP2 is None or SNP2.strip() == "" else SNP2
+    SE1 = col_lookup('SE', gwas1.columns) if SE1 is None else SE1
+    if SE1 is None or SE1.strip() == "" and col_lookup('CI', gwas1.columns):
+        SE1 = 'SE1'
+        gwas1[SE1] = gwas1[col_lookup('CI', gwas1.columns)].apply(parse_or_ci_to_se)
+    elif SE1 is None and MAF1 and Ncases1 and Ncontrols1:
+        SE1 = 'SE1'
+        case_fraction = gwas1['Ncases1'] / (gwas1['Ncases1'] + gwas1['Ncontrols1'])
+        gwas1['SE1'] = 1 / np.sqrt(
+    2 * (gwas1['Ncases1'] + gwas1['Ncontrols1']) * 
+    case_fraction * (1 - case_fraction) * 
+    gwas1['MAF1'] * (1 - gwas1['MAF1']) 
+    )
+    elif SE1 is None:
+        #Warning for missing SE1
+        print(f"Warning: SE is not specified for {gwas1_filename}. Using CI if available or calculating from MAF and Ncases/Ncontrols also failed.")
+    
+    SE2 = col_lookup('SE', gwas2.columns) if SE2 is None else SE2
+    if SE2 is None or SE2.strip() == "" and col_lookup('CI', gwas2.columns):
+        SE2 = 'SE2'
+        gwas2[SE2] = gwas2[col_lookup('CI', gwas2.columns)].apply(parse_or_ci_to_se)
+    elif SE2 is None and MAF2 and Ncases2 and Ncontrols2:
+        SE2 = 'SE2'
+        case_fraction = gwas2['Ncases2'] / (gwas2['Ncases2'] + gwas2['Ncontrols2'])
+        gwas2['SE2'] = 1 / np.sqrt(
+    2 * (gwas1['Ncases2'] + gwas1['Ncontrols2']) * 
+    case_fraction * (1 - case_fraction) * 
+    gwas1['MAF2'] * (1 - gwas1['MAF2'])
+    )
+    elif SE2 is None:
+        #Warning for missing SE1
+        print(f"Warning: SE is not specified for {gwas2_filename}. Using CI if available or calculating from MAF and Ncases/Ncontrols also failed.")
+    
+    BETA1 = col_lookup('BETA', gwas1.columns) if BETA1 is None or BETA1.strip() == "" else BETA1
+    if BETA1 is None or BETA1.strip() == "" and col_lookup('OR', gwas1.columns):
+        BETA1 = 'BETA1'
+        gwas1[BETA1] = gwas1[col_lookup('OR', gwas1.columns)].apply(lambda x: pd.np.log(x))
+    elif BETA1 is None and Z1 and SE1:
+        BETA1 = 'BETA1'
+        gwas1['BETA1'] = gwas1[Z1] * gwas1[SE1]
+    elif BETA1 is None:
+        #Warning for missing 
+        print(f"Warning: BETA is not specified for {gwas1_filename}. Using OR if available or calculating from Z and SE also failed.")
+
+    BETA2 = col_lookup('BETA', gwas2.columns) if BETA2 is None else BETA2
+    if BETA2 is None or BETA1.strip() == "" and col_lookup('OR', gwas2.columns):
+        BETA2 = 'BETA2'
+        gwas2[BETA2] = gwas2[col_lookup('OR', gwas2.columns)].apply(lambda x: pd.np.log(x))
+    elif BETA2 is None and Z2 and SE2:
+        BETA2 = 'BETA2'
+        gwas2['BETA2'] = gwas2[Z2] * gwas2[SE2]
+    elif BETA2 is None:
+        #Warning for missing 
+        print(f"Warning: BETA is not specified for {gwas2_filename}. Using OR if available or calculating from Z and SE also failed.")
 
     print(SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2)
     gwas1 = gwas1.rename(columns={SNP1: 'SNP1', MINOR1: 'MINOR1', MAJOR1: 'MAJOR1', 
@@ -42,27 +204,23 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
     gwas1 = gwas1.rename(columns={col_lookup('CHR', gwas1.columns): 'CHR1', col_lookup('POS', gwas1.columns): 'POS1'})
 
     if MINOR1 and MINOR2 and MAJOR1 and MAJOR2:
-        print(gwas1.columns)
-        print(gwas2.columns)
         merged = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MINOR2', 'MAJOR2'])
     
     else:
-        if not MINOR1:
+        if not MINOR1 or MINOR1.strip() == "":
             MINOR1 = col_lookup('ALLELE', gwas1.columns)
-        if not MAJOR1:
-            MAJOR1 = col_lookup('ALLELE', [col for col in gwas1.columns if col != MINOR1])
-        if not MINOR2:
+        if not MINOR2 or MINOR2.strip() == "":
             MINOR2 = col_lookup('ALLELE', gwas2.columns)
-        if not MAJOR2:
+        if not MAJOR1 or MAJOR1.strip() == "":
+            MAJOR1 = col_lookup('ALLELE', [col for col in gwas1.columns if col != MINOR1])
+        if not MAJOR2 or  MAJOR2.strip() == "":
             MAJOR2 = col_lookup('ALLELE', [col for col in gwas2.columns if col != MINOR2])
+
+        print(SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2)
+
 
         gwas1 = gwas1.rename(columns={MINOR1: 'MINOR1', MAJOR1: 'MAJOR1'})
         gwas2 = gwas2.rename(columns={MINOR2: 'MINOR2', MAJOR2: 'MAJOR2'})
-
-        print(MINOR1)
-        print(MINOR2)
-        print(MAJOR1)
-        print(MAJOR2)
 
         merge_flip_neg = gwas1.merge(
             gwas2,
@@ -100,32 +258,35 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
             'merge_neg': merge_neg['BETA1'].corr(merge_neg['BETA2']),
             'merge': merge['BETA1'].corr(merge['BETA2'])
         }
+        print(correlations)
         # Filter based on correlation conditions
         selected_merges = []
         for key, corr in correlations.items():
-            if corr < 0:
+            if corr > 0:
                 selected_merges.append(locals()[key])
             if len(selected_merges) == 2:  # Stop after selecting two merges
                 break
 
         if len(selected_merges) < 2:
-            # If fewer than 2 merges meet the condition, fill with other merges
-            for key in correlations.keys():
-                if len(selected_merges) < 2:
-                    selected_merges.append(locals()[key])
-
+           #append the one where correlation is nan
+            for key, df in locals().items():   
+                if isinstance(df, pd.DataFrame) and df.shape[0] == 0:
+                    selected_merges.append(df)
+                    if len(selected_merges) == 2:
+                        break
         # Concatenate the selected merges
         merged = pd.concat(selected_merges, ignore_index=True)
 
+    print(selected_merges)
     phemed_out = merged[['SNP1', 'CHR1', 'POS1', 'BETA1', 'BETA2', 'SE1', 'SE2']]
     phemed_out = phemed_out.rename(columns={
             'SNP1': 'SNP',
             'CHR1': 'CHR',
             'POS1': 'POS',
-            'BETA1': 'STUDY1',
-            'BETA2': 'STUDY2',
-            'SE1': 'SE1',
-            'SE2': 'SE2'
+            'BETA1': 'STUDY'+ gwas1_filename,
+            'BETA2': 'STUDY'+gwas2_filename,
+            'SE1': 'SE'+gwas1_filename,
+            'SE2': 'SE'+gwas2_filename
         })
 
     return phemed_out
@@ -134,49 +295,99 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Merge GWAS summary statistics files.")
-    parser.add_argument("--gwas1", required=True, help="Path to the first GWAS summary statistics file.")
-    parser.add_argument("--gwas2", required=True, help="Path to the second GWAS summary statistics file.")
-    parser.add_argument("--SNP1", help="SNP column name for the first file.")
-    parser.add_argument("--SNP2", help="SNP column name for the second file.")
-    parser.add_argument("--BETA1", help="BETA column name for the first file.")
-    parser.add_argument("--BETA2", help="BETA column name for the second file.")
-    parser.add_argument("--SE1", help="SE column name for the first file.")
-    parser.add_argument("--SE2", help="SE column name for the second file.")
-    parser.add_argument("--MINOR1", help="MINOR allele column name for the first file.")
-    parser.add_argument("--MINOR2", help="MINOR allele column name for the second file.")
-    parser.add_argument("--MAJOR1", help="MAJOR allele column name for the first file.")
-    parser.add_argument("--MAJOR2", help="MAJOR allele column name for the second file.")
+    parser.add_argument("--gwas_files", required=True, nargs='+', help="Paths to GWAS summary statistics files.")
+    parser.add_argument("--SNP", nargs='+', help="SNP column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--BETA", nargs='+', help="BETA column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--SE", nargs='+', help="SE column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--MINOR", nargs='+', help="MINOR allele column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--MAJOR", nargs='+', help="MAJOR allele column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--Z", nargs='+', help="Z Score column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--MAF", nargs='+', help="Minor allele frequency column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--Ncases", nargs='+', help="Number of cases column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--Ncontrols", nargs='+', help="Number of controls column names. Use None to skip specifying this argument for a GWAS file.", default=[])
+    parser.add_argument("--output", help="Output file path for merged results.", default="merged_gwas.csv")
 
     args = parser.parse_args()
 
     # Load GWAS files
-    gwas1 = pd.read_csv(args.gwas1, sep='\t', low_memory=False)
-    gwas2 = pd.read_csv(args.gwas2, sep='\t', low_memory=False)
-    SNP1 = args.SNP1 or col_lookup('SNP', gwas1.columns)
-    SNP2 = args.SNP2 or col_lookup('SNP', gwas2.columns)
-    BETA1 = args.BETA1 or col_lookup('BETA', gwas1.columns)
-    BETA2 = args.BETA2 or col_lookup('BETA', gwas2.columns)
-    SE1 = args.SE1 or col_lookup('SE', gwas1.columns)
-    SE2 = args.SE2 or col_lookup('SE', gwas2.columns)
-    MINOR1 = args.MINOR1
-    MINOR2 = args.MINOR2
-    MAJOR1 = args.MAJOR1
-    MAJOR2 = args.MAJOR2
+    gwas_files = args.gwas_files
+    SNP = (
+    [None if x == 'None' else x for x in args.SNP]
+    + [None] * (len(gwas_files) - len(args.SNP))
+    if len(args.SNP) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.SNP]
+)
+    BETA = (
+    [None if x == 'None' else x for x in args.BETA]
+    + [None] * (len(gwas_files) - len(args.BETA))
+    if len(args.BETA) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.BETA]
+)
+    SE = (
+    [None if x == 'None' else x for x in args.SE]
+    + [None] * (len(gwas_files) - len(args.SE))
+    if len(args.SE) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.SE]
+)
+    MINOR = (
+    [None if x == 'None' else x for x in args.MINOR]
+    + [None] * (len(gwas_files) - len(args.MINOR))
+    if len(args.MINOR) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.MINOR]
+)
+    MAJOR = (
+    [None if x == 'None' else x for x in args.MAJOR]
+    + [None] * (len(gwas_files) - len(args.MAJOR))
+    if len(args.MAJOR) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.MAJOR]
+)
+    Z = args.Z + [None] * (len(gwas_files) - len(args.Z)) if len(args.Z) < len(gwas_files) else args.Z
+    MAF = args.MAF + [None] * (len(gwas_files) - len(args.MAF)) if len(args.MAF) < len(gwas_files) else args.MAF
+    Ncases = args.Ncases + [None] * (len(gwas_files) - len(args.Ncases)) if len(args.Ncases) < len(gwas_files) else args.Ncases
+    Ncontrols = args.Ncontrols + [None] * (len(gwas_files) - len(args.Ncontrols)) if len(args.Ncontrols) < len(gwas_files) else args.Ncontrols
+    
+    OUTPUT = args.output
+    # Iteratively merge GWAS files
 
-    # Merge the two dataframes
-    merged = gwas_merge(
-        gwas1, gwas2,
-        SNP1, SNP2,
-        BETA1, BETA2,
-        SE1, SE2,
-        MINOR1, MINOR2,
-        MAJOR1, MAJOR2
-    )
+    print(gwas_files, SNP, BETA, SE, MINOR, MAJOR, Z, MAF, Ncases, Ncontrols)
+    merged_list = []
+    for i in range(len(gwas_files)):
+        for j in range(i + 1, len(gwas_files)):
+            merged = gwas_merge(
+                gwas_files[i], gwas_files[j],
+                SNP[i], SNP[j],
+                BETA[i], BETA[j],
+                SE[i], SE[j],
+                MINOR[i], MINOR[j],
+                MAJOR[i], MAJOR[j],
+                Z[i], Z[j],
+                MAF[i], MAF[j],
+                Ncases[i], Ncases[j],
+                Ncontrols[i], Ncontrols[j]
+            )
+            print(merged.head())
+            merged_list.append(merged)
+    
+    if len(merged_list) == 1:
+        result = merged_list[0]
+        #Rename result cols as SNP, CHR, POS, STUDY1, STUDY2, SE1, SE2
+        result.columns = [
+            'SNP',
+            'CHR',
+            'POS',
+            'STUDY1',
+            'STUDY2',
+            'SE1',
+            'SE2'
+        ]
+        print(merged_list[0].head())
+    else:
+        result = merge_of_merge(merged_list)
 
-    # Save the merged output
-    #merged.to_csv("output/merged_gwas.csv", index=False)
-    print(merged.head())
+    #Save the merged output
+    result.to_csv(OUTPUT, index=False)
+    print(result)
+    
 
 if __name__ == "__main__":
     main()
-    
