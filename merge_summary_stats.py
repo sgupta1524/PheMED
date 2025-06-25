@@ -3,37 +3,52 @@ import argparse
 import os
 import re
 import numpy as np
+import gzip
 
 ##TODO:
 """
-1. if alleles are not specified by user - done, just check the output results thoroughly, check the correlation checking part
+1. if alleles are not specified by user
 2. Merging more than 2 files - check merging by adhoc results
 3. odds ratio instead of beta
-4. CI instead of SE
 5. Z scores
 6. Add warnings and edge cases - I am here now
+7. Detect separator - done
+8. Remove print statements
 """
 
 def col_lookup(col_to_lookup, columns):
     # Check if any of the values corresponding to col_to_lookup key from reverse mapping exist in columns (case-insensitive)
-    reverse_mapping = {
-        'SNP': ['SNP', 'MARKERNAME', 'SNPID', 'RS', 'RSID', 'RS_NUMBER', 'RS_NUMBERS', 'RSIDS', 'SNP_ID'],
+    mapping = {
+        'SNP': ['SNP', 'MARKERNAME', 'SNPID', 'RS', 'RSID', 'RS_NUMBER', 'RS_NUMBERS', 'RSIDS', 'SNP_ID', 'VARIANT_ID'],
         'CHR': ['CHR', 'CHROM', 'CHROMOSOME', '#CHR', '#CHROM'],
-        'POS': ['POS', 'BP', 'POSITION'],
-        'BETA': ['BETA', 'EFFECT', 'EFFECT_SIZE', 'EFFECT_ESTIMATE'],
+        'POS': ['POS', 'BP', 'POSITION', 'BASE_PAIR_LOCATION', 'POSITION_BP', 'BP_POSITION'],
+        'BETA': ['BETA', 'EFFECT', 'EFFECT_SIZE', 'EFFECT_ESTIMATE', 'LOGOR', 'LOG_ODDS', 'LOG_ODDS_RATIO', 'BETA_COEFFICIENT'],
         'OR' : ['OR', 'ODDS_RATIO', 'ODDS', 'ODDSRATIO'],
-        'SE': ['SE', 'STDERR', 'STANDARD_ERROR', 'SEBETA', 'STD_ERR'],
-        'CI': ['CI', 'CONFIDENCE_INTERVAL', 'CICONFIDENCE', 'CICONF'],
+        'SE': ['SE', 'STDERR', 'STANDARD_ERROR', 'SEBETA', 'STD_ERR', 'STDERRLOGOR'],
         'ALLELE': ['ALLELE', 'ALLELES', 'MINOR_ALLELE', 'MAJOR_ALLELE', 'MINOR', 'MAJOR', 'A1', 'A2', 'ALLELE1', 'ALLELE2', 'REF', 'ALT', 'REF_ALLELE', 'ALT_ALLELE', 'EFFECT_ALLELE', 'OTHER_ALLELE', 'EA', 'OA']
     }
-    values = reverse_mapping.get(col_to_lookup, [])
+    values = mapping.get(col_to_lookup, [])
     for value in values:
-        if value.lower() in [col.lower() for col in columns]:
-            if value in columns:
-                return value
-            elif value.lower() in [col.lower() for col in columns]:
-                return value.lower()
+        for col in columns:
+            if value.lower() == col.lower():
+                return col
     return None
+            
+
+def detect_separator(file_path):
+    """
+    Detects the separator used in a file by checking the first line.
+    Supports both plain text and gzipped files.
+    Returns the detected separator or raises an error if no separator is found.
+    """
+
+    open_func = gzip.open if file_path.endswith('.gz') else open
+    with open_func(file_path, 'rt', encoding='utf-8') as f:
+        first_line = f.readline().strip()
+    for sep in [',', '\t', ';', ' ']:
+        if sep in first_line:
+            return sep
+    raise ValueError(f"Unable to detect separator in {file_path}")
 
 def merge_of_merge(merged_list):
     """
@@ -43,7 +58,7 @@ def merge_of_merge(merged_list):
     merged = pd.merge(merged_list[0], merged_list[1], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', ''))
     for i in range(2, len(merged_list)):
         merged = pd.merge(merged, merged_list[i], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', ''))
-        print(merged.head())
+        print(merged.columns)
     print(merged.columns)
     return fix_colnames(merged)
 
@@ -117,36 +132,26 @@ def fix_colnames(df):
     print(f"New columns: {result_df.columns.tolist()}")
     return result_df
 
-def parse_or_ci_to_se(ci_string):
-   if pd.isna(ci_string) or ci_string == '':
-        return np.nan
-   try:
-        # Split by comma and convert to float
-        ci_lower, ci_upper = map(float, ci_string.split(','))
-        
-        # Convert to SE (assuming 95% CI, z = 1.96)
-        se = (ci_upper - ci_lower) / (2 * 1.96)
-        
-        return se
-   except:
-        return np.nan
-
 def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2, 
                Z1=None, Z2=None, MAF1=None, MAF2=None, Ncases1=None, Ncases2=None, Ncontrols1=None, Ncontrols2=None):
 
     gwas1_filename = os.path.basename(gwas1)
     gwas2_filename = os.path.basename(gwas2)
-    gwas1 = pd.read_csv(gwas1, sep='\t', low_memory=False)
-    gwas2 = pd.read_csv(gwas2, sep='\t', low_memory=False)
+    separator1 = detect_separator(gwas1)
+    separator2 = detect_separator(gwas2)
+    open_func1 = gzip.open if gwas1.endswith('.gz') else open
+    open_func2 = gzip.open if gwas2.endswith('.gz') else open
 
+    with open_func1(gwas1, 'rt', encoding='utf-8') as f1:
+        gwas1 = pd.read_csv(f1, sep=separator1, low_memory=False)
+
+    with open_func2(gwas2, 'rt', encoding='utf-8') as f2:
+        gwas2 = pd.read_csv(f2, sep=separator2, low_memory=False)
     #if SNP, BETA and SE are none do a lookup
     SNP1 = col_lookup('SNP', gwas1.columns) if SNP1 is None or SNP1.strip() == "" else SNP1
     SNP2 = col_lookup('SNP', gwas2.columns) if SNP2 is None or SNP2.strip() == "" else SNP2
     SE1 = col_lookup('SE', gwas1.columns) if SE1 is None else SE1
-    if SE1 is None or SE1.strip() == "" and col_lookup('CI', gwas1.columns):
-        SE1 = 'SE1'
-        gwas1[SE1] = gwas1[col_lookup('CI', gwas1.columns)].apply(parse_or_ci_to_se)
-    elif SE1 is None and MAF1 and Ncases1 and Ncontrols1:
+    if SE1 is None and MAF1 and Ncases1 and Ncontrols1:
         SE1 = 'SE1'
         case_fraction = gwas1['Ncases1'] / (gwas1['Ncases1'] + gwas1['Ncontrols1'])
         gwas1['SE1'] = 1 / np.sqrt(
@@ -156,13 +161,11 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
     )
     elif SE1 is None:
         #Warning for missing SE1
-        print(f"Warning: SE is not specified for {gwas1_filename}. Using CI if available or calculating from MAF and Ncases/Ncontrols also failed.")
+        print(f"Warning: SE is not specified for {gwas1_filename}. Calculating from MAF and Ncases/Ncontrols also failed.")
     
+    print(gwas2.columns)
     SE2 = col_lookup('SE', gwas2.columns) if SE2 is None else SE2
-    if SE2 is None or SE2.strip() == "" and col_lookup('CI', gwas2.columns):
-        SE2 = 'SE2'
-        gwas2[SE2] = gwas2[col_lookup('CI', gwas2.columns)].apply(parse_or_ci_to_se)
-    elif SE2 is None and MAF2 and Ncases2 and Ncontrols2:
+    if SE2 is None and MAF2 and Ncases2 and Ncontrols2:
         SE2 = 'SE2'
         case_fraction = gwas2['Ncases2'] / (gwas2['Ncases2'] + gwas2['Ncontrols2'])
         gwas2['SE2'] = 1 / np.sqrt(
@@ -172,7 +175,7 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
     )
     elif SE2 is None:
         #Warning for missing SE1
-        print(f"Warning: SE is not specified for {gwas2_filename}. Using CI if available or calculating from MAF and Ncases/Ncontrols also failed.")
+        print(f"Warning: SE is not specified for {gwas2_filename}. Calculating from MAF and Ncases/Ncontrols also failed.")
     
     BETA1 = col_lookup('BETA', gwas1.columns) if BETA1 is None or BETA1.strip() == "" else BETA1
     if BETA1 is None or BETA1.strip() == "" and col_lookup('OR', gwas1.columns):
@@ -218,9 +221,13 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 
         print(SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2)
 
-
         gwas1 = gwas1.rename(columns={MINOR1: 'MINOR1', MAJOR1: 'MAJOR1'})
         gwas2 = gwas2.rename(columns={MINOR2: 'MINOR2', MAJOR2: 'MAJOR2'})
+
+        gwas1['MINOR1'] = gwas1['MINOR1'].str.upper()
+        gwas1['MAJOR1'] = gwas1['MAJOR1'].str.upper()
+        gwas2['MINOR2'] = gwas2['MINOR2'].str.upper()
+        gwas2['MAJOR2'] = gwas2['MAJOR2'].str.upper()
 
         merge_flip_neg = gwas1.merge(
             gwas2,
@@ -258,7 +265,7 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
             'merge_neg': merge_neg['BETA1'].corr(merge_neg['BETA2']),
             'merge': merge['BETA1'].corr(merge['BETA2'])
         }
-        print(correlations)
+        
         # Filter based on correlation conditions
         selected_merges = []
         for key, corr in correlations.items():
@@ -276,8 +283,10 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
                         break
         # Concatenate the selected merges
         merged = pd.concat(selected_merges, ignore_index=True)
-
-    print(selected_merges)
+    print(selected_merges[0].columns)
+    print(selected_merges[1].columns)
+    print(merged.columns)
+    
     phemed_out = merged[['SNP1', 'CHR1', 'POS1', 'BETA1', 'BETA2', 'SE1', 'SE2']]
     phemed_out = phemed_out.rename(columns={
             'SNP1': 'SNP',
@@ -295,7 +304,7 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Merge GWAS summary statistics files.")
-    parser.add_argument("--gwas_files", required=True, nargs='+', help="Paths to GWAS summary statistics files.")
+    parser.add_argument("--gwas_files", required=True, nargs='+', help="Paths to GWAS summary statistics files. Please ensure that the first GWAS has SNP, chromosome, position columns")
     parser.add_argument("--SNP", nargs='+', help="SNP column names. Use None to skip specifying this argument for a GWAS file.", default=[])
     parser.add_argument("--BETA", nargs='+', help="BETA column names. Use None to skip specifying this argument for a GWAS file.", default=[])
     parser.add_argument("--SE", nargs='+', help="SE column names. Use None to skip specifying this argument for a GWAS file.", default=[])
