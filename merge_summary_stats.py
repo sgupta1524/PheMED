@@ -23,7 +23,7 @@ def col_lookup(col_to_lookup, columns):
         'BETA': ['BETA', 'EFFECT', 'EFFECT_SIZE', 'EFFECT_ESTIMATE', 'LOGOR', 'LOG_ODDS', 'LOG_ODDS_RATIO', 'BETA_COEFFICIENT'],
         'OR' : ['OR', 'ODDS_RATIO', 'ODDS', 'ODDSRATIO'],
         'SE': ['SE', 'STDERR', 'STANDARD_ERROR', 'SEBETA', 'STD_ERR', 'STDERRLOGOR', 'SETest statistic'],
-        'ALLELE': ['ALLELE', 'ALLELES', 'MINOR_ALLELE', 'MAJOR_ALLELE', 'MINOR', 'MAJOR', 'A1', 'A2', 'ALLELE1', 'ALLELE2', 
+        'ALLELE': ['ALLELE', 'ALLELE0', 'MINOR_ALLELE', 'MAJOR_ALLELE', 'MINOR', 'MAJOR', 'A1', 'A2', 'ALLELE1', 'ALLELE2', 
                    'REF', 'ALT', 'REF_ALLELE', 'ALT_ALLELE', 'EFFECT_ALLELE', 'OTHER_ALLELE', 'EA', 'OA', 'ALLELE 1', 'ALLELE 2']
     }
     values = mapping.get(col_to_lookup, [])
@@ -254,7 +254,10 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
     gwas2 = gwas2.rename(columns={col_lookup('CHR', gwas2.columns): 'CHR2', col_lookup('POS', gwas2.columns): 'POS2'})
 
     if MINOR1 and MINOR2 and MAJOR1 and MAJOR2:
-        merged = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MINOR2', 'MAJOR2'])
+        merged_1 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MINOR2', 'MAJOR2'])
+        merged_2 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MAJOR2', 'MINOR2'])
+        merged_2['BETA2'] = -1 * merged_2['BETA2']
+        merged = pd.concat([merged_1, merged_2], ignore_index=True).drop_duplicates()
     
     else:
         if not MINOR1 or MINOR1.strip() == "":
@@ -370,9 +373,9 @@ def main():
     parser.add_argument("--BETA", nargs='+', help="BETA column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--OR", nargs='+', help="Odds Ratio column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--SE", nargs='+', help="SE column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
-    parser.add_argument("--MINOR", nargs='+', help="MINOR allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated.Please" \
+    parser.add_argument("--MINOR", nargs='+', help="MINOR allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated." \
     "give none or both or minor and major.", default=[])
-    parser.add_argument("--MAJOR", nargs='+', help="MAJOR allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated.Please" \
+    parser.add_argument("--MAJOR", nargs='+', help="MAJOR allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated." \
     "give none or both or minor and major.", default=[])
     parser.add_argument("--Z", nargs='+', help="Z Score column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--MAF", nargs='+', help="Minor allele frequency column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
