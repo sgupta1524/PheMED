@@ -157,8 +157,9 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 
     if SE1 is None and MAF1 and Ncases1 and Ncontrols1:
         SE1 = 'SE1'
-        N = (gwas1[Ncases1] * gwas1[Ncontrols1]) / (gwas1[Ncases1] + gwas1[Ncontrols1])
-        gwas1['SE1'] = 1 / np.sqrt(2 * (N * gwas1['MAF1'] * (1 - gwas1['MAF1']) ))
+        gwas1['Prop'] = gwas1[Ncases1] /(gwas1[Ncontrols1]+gwas1[Ncases1])
+        gwas1['MAF_term'] = gwas1['MAF1'] * (1 - gwas1['MAF1'])
+        gwas1[SE1] = 1 / np.sqrt(2 * gwas1['MAF_term'] * gwas1[Ncases1]*gwas1['Prop']*(1-gwas1['Prop']))
 
     elif SE1 is None and MINOR1 and MAJOR1 and Ncases1 and Ncontrols1:
         print(f"Calculating SE with MAF from MAFdata file for {gwas1_filename}.")
@@ -166,18 +167,19 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         gwas1[MINOR1] = gwas1[MINOR1].str.upper()
         gwas1[MAJOR1] = gwas1[MAJOR1].str.upper()
 
-        MAFdata = pd.read_csv("MAFdata/OUD_stringent.EUR.MVP.DrugAlcDep2021_formatted_cleaned.txt", sep="\t")
+        MAFdata = pd.read_csv("/Users/sonali.gupta/Downloads/PheMEDPower/OuD/New/summary_stats_finngen_R7_F5_OPIOIDS (1) (1)", sep="\t")
         # Merge gwas1 with MAFdata to avoid row-wise operations
         merged_data = gwas1.merge(
-        MAFdata[['SNP_ID', 'EffectAllele', 'OtherAllele', 'MAF']],
+        MAFdata[['rsids', 'alt', 'ref', 'af_alt']],
         left_on=[SNP1, MINOR1, MAJOR1],
-        right_on=['SNP_ID', 'EffectAllele', 'OtherAllele'],
+        right_on=['rsids', 'alt', 'ref'],
         how='inner'
         )
         # Calculate N and SE
-        merged_data['N'] = (merged_data[Ncases1] * merged_data[Ncontrols1]) / (merged_data[Ncases1] + merged_data[Ncontrols1])
+        merged_data['Prop'] = merged_data[Ncases1] /(merged_data[Ncontrols1]+merged_data[Ncases1])
+        merged_data['MAF_term'] = merged_data['af_alt'] * (1 - merged_data['af_alt'])
         SE1 = 'SE1'
-        merged_data[SE1] = 1 / np.sqrt(2 * merged_data['N'] * merged_data['MAF'] * (1 - merged_data['MAF']))
+        merged_data[SE1] = 1 / np.sqrt(2 * merged_data['MAF_term'] * merged_data[Ncases1]*merged_data['Prop']*(1-merged_data['Prop']))
         gwas1 = merged_data  # Update gwas1 with the merged data
 
     elif SE1 is None:
@@ -188,12 +190,10 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 
     if SE2 is None and MAF2 and Ncases2 and Ncontrols2:
         SE2 = 'SE2'
-        case_fraction = gwas2[Ncases2] / (gwas2[Ncases2] + gwas2[Ncontrols2])
-        gwas2['SE2'] = 1 / np.sqrt(
-    2 * (gwas1[Ncases2] + gwas1[Ncontrols2]) * 
-    case_fraction * (1 - case_fraction) * 
-    gwas1['MAF2'] * (1 - gwas1['MAF2'])
-    )
+        gwas2['Prop'] = gwas2[Ncases2] /(gwas2[Ncontrols2]+gwas2[Ncases2])
+        gwas2['MAF_term'] = gwas2['MAF2'] * (1 - gwas2['MAF2'])
+        gwas2[SE2] = 1 / np.sqrt(2 * gwas2['MAF_term'] * gwas2[Ncases2]*gwas2['Prop']*(1-gwas2['Prop']))
+
 
     elif SE2 is None and MINOR2 and MAJOR2 and Ncases2 and Ncontrols2:
         print(f"Calculating SE with MAF from MAFdata file for {gwas1_filename}.")
@@ -204,17 +204,16 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 
         # Merge gwas1 with MAFdata to avoid row-wise operations
         merged_data = gwas2.merge(
-        MAFdata[['SNP_ID', 'EffectAllele', 'OtherAllele', 'MAF']],
+        MAFdata[['rsids', 'alt', 'ref', 'af_alt']],
         left_on=[SNP2, MINOR2, MAJOR2],
-        right_on=['SNP_ID', 'EffectAllele', 'OtherAllele'],
+        right_on=['rsids', 'alt', 'ref'],
         how='inner'
         )
         # Calculate N and SE
-        merged_data['N'] = (merged_data[Ncases2] * merged_data[Ncontrols2]) / (merged_data[Ncases2] + merged_data[Ncontrols2])
-        #print(merged_data['N'])
-        print(merged_data['MAF'])
+        merged_data['Prop'] = merged_data[Ncases2] /(merged_data[Ncontrols2]+merged_data[Ncases2])
+        merged_data['MAF_term'] = merged_data['af_alt'] * (1 - merged_data['af_alt'])
         SE2 = 'SE2'
-        merged_data[SE2] = 1 / np.sqrt(2 * merged_data['N'] * merged_data['MAF'] * (1 - merged_data['MAF']))
+        merged_data[SE2] = 1 / np.sqrt(2 * merged_data['MAF_term'] * merged_data[Ncases2]*merged_data['Prop']*(1-merged_data['Prop']))
         gwas2 = merged_data  # Update gwas1 with the merged data    
 
     elif SE2 is None:
