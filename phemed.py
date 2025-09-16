@@ -55,6 +55,9 @@ parser.add_argument("--n_CIs", type = int, default = 2000,
             help = "Number of bootstrap samples to compute CIs.  The default value is 2,000.")
 parser.add_argument("--max_iters", type = int, default = 300,
             help = "Maximum iterations for optimization.  The default value is 300.")
+parser.add_argument("--optimisation_init", type = str,
+            help = "Initial values to begin optimisation.  Values should be comma separated floats. The default value is np.ones(n_studies). Do not give" \
+            "values greater than either dilution_limit or 1/dilution_limit.")
 parser.add_argument("--optimizer_method", type = str, default = "Nelder-Mead",
             help = "Algorithm for optimization, see scipy.minimize for valid choices.  The default value is Nelder-Mead.")
 parser.add_argument("--block_window_initialize", type = int, default = 2000,
@@ -63,6 +66,13 @@ parser.add_argument("--dilution_limit", type = float, default = 10,
                         help = "Maximum allowed dilution value, must be larger than 1.")
 parser.add_argument("--bruteforce_start", type = boolean_string, default = True,
             help = "Use bruteforce to choose initial guess for MLE for estimating p-values using extreme value theory.  The default value is True.")
+parser.add_argument("--print_optimisation_function_value", action='store_true',
+                    help="If True, prints the optimisation function value. The default value is False.")
+parser.add_argument("--print_optimizer_iterations", action='store_true',
+                    help="If True, prints the number of iterations taken by the optimizer. The default value is False.")
+parser.add_argument("--log_convergence_status", action='store_true',
+                    help="If True, logs whether the optimizer converged. The default value is False.")
+
 if __name__ == '__main__':
 
     args = parser.parse_args()
@@ -78,6 +88,15 @@ if __name__ == '__main__':
     seed = args.seed
     n_trials = args.n_CIs
     max_iters = args.max_iters
+    if args.optimisation_init is None:
+        optimisation_init = np.ones(n_studies)
+    else:
+        try:
+            optimisation_init = np.array([float(x) for x in args.optimisation_init.split(',')])
+            if len(optimisation_init) != n_studies:
+                raise ValueError("Length of optimisation_init must be equal to n_studies")
+        except Exception as e:
+            raise ValueError("optimisation_init must be a comma separated list of numbers")
     bruteforce = args.bruteforce_start
     optimizer_method = args.optimizer_method
     dilution_limit = args.dilution_limit
@@ -195,8 +214,18 @@ if __name__ == '__main__':
         else:
             logger.info("Median value of betas was {}, which seems sensible.".format(m))
 
-        optimizer = minimize(lambda x: phe.nll_data(betas,ses, x, dilution_limit = dilution_limit), np.ones(n_studies),
+        optimizer = minimize(lambda x: phe.nll_data(betas,ses, x, dilution_limit = dilution_limit), optimisation_init,
                         options={'maxiter': max_iters}, method = optimizer_method)
+        if args.print_optimisation_function_value:
+            logger.info("Final negative log-likelihood value is: " + str(optimizer.fun))
+        if args.print_optimizer_iterations:
+            logger.info("Number of iterations taken by optimizer: " + str(optimizer.nit))
+        if args.log_convergence_status:
+            if optimizer.success:
+                logger.info("Optimizer converged successfully.")
+            else:
+                logger.warning("Optimizer did not converge: " + optimizer.message)
+
     #code normalizes first entry to be 1
         message = optimizer.message
         logger.info("PheMED " + message)
