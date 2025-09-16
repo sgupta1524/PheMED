@@ -54,9 +54,9 @@ def merge_of_merge(merged_list):
     Outer join of the elements of merged_list, which are dataframes.
     If the columns are not present in the dataframe, they will be filled with NaN.
     """
-    merged = pd.merge(merged_list[0], merged_list[1], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', ''))
+    merged = pd.merge(merged_list[0], merged_list[1], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', '')).drop_duplicates(subset=['SNP'], keep='first')
     for i in range(2, len(merged_list)):
-        merged = pd.merge(merged, merged_list[i], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', ''))
+        merged = pd.merge(merged, merged_list[i], on=['SNP', 'CHR', 'POS'], how='outer', suffixes=('_dup', '')).drop_duplicates(subset=['SNP'], keep='first')
 
     return fix_colnames(merged)
 
@@ -256,7 +256,7 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         merged_1 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MINOR2', 'MAJOR2'])
         merged_2 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MAJOR2', 'MINOR2'])
         merged_2['BETA2'] = -1 * merged_2['BETA2']
-        merged = pd.concat([merged_1, merged_2], ignore_index=True).drop_duplicates()
+        merged = pd.concat([merged_1, merged_2], ignore_index=True).drop_duplicates(subset=['SNP1'])
     
     else:
         if not MINOR1 or MINOR1.strip() == "":
@@ -332,7 +332,7 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
                     if len(selected_merges) == 2:
                         break
         # Concatenate the selected merges
-        merged = pd.concat(selected_merges, ignore_index=True)
+        merged = pd.concat(selected_merges, ignore_index=True).drop_duplicates(subset=['SNP1'], keep='first')
     
     if 'CHR1' and 'POS1' in merged.columns:
         phemed_out = merged[['SNP1', 'CHR1', 'POS1', 'BETA1', 'BETA2', 'SE1', 'SE2']]
