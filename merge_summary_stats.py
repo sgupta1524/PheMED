@@ -92,12 +92,6 @@ def fix_colnames(df):
             se_groups[suffix] = []
         se_groups[suffix].append(col)
 
-    for suffix, cols in study_groups.items():
-        print(f"  {suffix}: {cols}")
-
-    for suffix, cols in se_groups.items():
-        print(f"  {suffix}: {cols}")
-
     # Combine columns within each group and use simple naming
     # Create new dataframe with combined columns
     result_df = df[['SNP', 'CHR', 'POS']].copy()
@@ -127,7 +121,6 @@ def fix_colnames(df):
     se_cols = [col for col in result_df.columns if col.startswith('SE')]
     ordered_cols = ['SNP', 'CHR', 'POS'] + study_cols + se_cols
     result_df = result_df[ordered_cols]
-    print(f"New columns: {result_df.columns.tolist()}")
     return result_df
 
 def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2, 
@@ -146,9 +139,8 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
 
     with open_func2(gwas2, 'rt', encoding='utf-8') as f2:
         gwas2 = pd.read_csv(f2, sep=separator2, low_memory=False)
-
-    print(gwas1.columns)
-    print(gwas2.columns)
+    print(f"Loaded {gwas1_filename} with {gwas1.shape[0]} rows and {gwas1.shape[1]} columns.")
+    print(f"Loaded {gwas2_filename} with {gwas2.shape[0]} rows and {gwas2.shape[1]} columns.")
 
     #if SNP, BETA and SE are none do a lookup
     SNP1 = col_lookup('SNP', gwas1.columns) if SNP1 is None or SNP1.strip() == "" else SNP1
@@ -268,8 +260,6 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         if not MAJOR2 or  MAJOR2.strip() == "":
             MAJOR2 = col_lookup('ALLELE', [col for col in gwas2.columns if col != MINOR2])
 
-        print(SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2)
-
         gwas1 = gwas1.rename(columns={MINOR1: 'MINOR1', MAJOR1: 'MAJOR1'})
         gwas2 = gwas2.rename(columns={MINOR2: 'MINOR2', MAJOR2: 'MAJOR2'})
 
@@ -314,7 +304,6 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
             'merge_neg': merge_neg.dropna(subset=['BETA1', 'BETA2'])['BETA1'].corr(merge_neg.dropna(subset=['BETA1', 'BETA2'])['BETA2']),
             'merge': merge.dropna(subset=['BETA1', 'BETA2'])['BETA1'].corr(merge.dropna(subset=['BETA1', 'BETA2'])['BETA2'])
         }
-        print(correlations)
         # Filter based on correlation conditions
         selected_merges = []
         for key, corr in correlations.items():
@@ -324,7 +313,6 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
                 break
         
         if len(selected_merges) < 2:
-            print("here")
            #append the one where correlation is nan
             for df in [merge_flip_neg, merge_flip, merge_neg, merge]:   
                 if isinstance(df, pd.DataFrame) and df.shape[0] == 0:
@@ -333,7 +321,10 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
                         break
         # Concatenate the selected merges
         merged = pd.concat(selected_merges, ignore_index=True).drop_duplicates(subset=['SNP1'], keep='first')
-    
+        #warn the user that there are duplicates in SNP1 and check data quality
+        if any('SNP1' in df.columns and df['SNP1'].duplicated().any() for df in selected_merges):
+            print(f"Warning: There are duplicates in SNP1 after merging {gwas1_filename} and {gwas2_filename}. Please check the data quality.")
+
     if 'CHR1' and 'POS1' in merged.columns:
         phemed_out = merged[['SNP1', 'CHR1', 'POS1', 'BETA1', 'BETA2', 'SE1', 'SE2']]
         phemed_out = phemed_out.rename(columns={
@@ -432,8 +423,6 @@ def main():
 
     OUTPUT = args.output
     # Iteratively merge GWAS files
-
-    print(gwas_files, SNP, BETA, SE, MINOR, MAJOR, Z, MAF, Ncases, Ncontrols)
     merged_list = []
     for i in range(len(gwas_files)):
         for j in range(i + 1, len(gwas_files)):
@@ -469,8 +458,6 @@ def main():
 
     #Save the merged output
     result.to_csv(OUTPUT, index=False)
-    print(result)
-    
 
 if __name__ == "__main__":
     main()
