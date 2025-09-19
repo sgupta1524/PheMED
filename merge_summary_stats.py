@@ -159,7 +159,7 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         gwas1[MINOR1] = gwas1[MINOR1].str.upper()
         gwas1[MAJOR1] = gwas1[MAJOR1].str.upper()
 
-        MAFdata = pd.read_csv("/Users/sonali.gupta/Downloads/PheMEDPower/OuD/New/summary_stats_finngen_R7_F5_OPIOIDS (1) (1)", sep="\t")
+        MAFdata = pd.read_csv("MAFdata/summary_stats_finngen_R7_F5_OPIOIDS (1) (1)", sep="\t")
         # Merge gwas1 with MAFdata to avoid row-wise operations
         merged_data = gwas1.merge(
         MAFdata[['rsids', 'alt', 'ref', 'af_alt']],
