@@ -25,6 +25,23 @@ conda env create --file environment.yml
 conda activate phemed
 ```
 
+### Preparing data for PheMED
+
+To merge GWAS summary statistics, run the merge_summary_stats.py script
+For example:
+```
+python merge_summary_stats.py --gwas ALZ_Bellenguez.tsv ALZ_summary_stats_finngen_R7_G6_AD_WIDE_EXMORE --SNP variant_id rsids --BETA beta beta --SE standard_error sebeta --out ALZ_test_out
+```
+- `--gwas` specifies the input GWAS summary statistics files to be merged, space-separated.
+- `--SNP` identifies the column names for SNP identifiers in the input files.
+- `--BETA` specifies the column names for the effect sizes in the input files.
+- `--SE` specifies the column names for the standard errors in the input files.
+- `--EFFECTALLELE` specifies the column name for the effect allele in the input files.
+- `--OTHERALLELE` specifies the column name for the other allele in the input files.
+- `--OUT` denotes the prefix for the output file containing the merged summary statistics.
+
+The merged output file will contain columns: `SNP`, `CHR`, and `POS` for the rsid, chromosome, and base pair position of the SNP, followed by the effect sizes and standard errors for each study. Ensure that the input files share common SNPs across at least two studies for successful merging.
+
 ### Running PheMED
 
 To run PheMED on the sample data, run the following command:
@@ -35,7 +52,7 @@ python phemed.py --sum_stats data/sim_data.csv --n_studies 2 --out output/local_
 - `--n_studies` denotes the number of studies being analyzed
 - `--out` denotes prefix for output files
 
-For the sum_stats csv, PheMED expects the input csv file to have columns: `SNP`, `CHR`, and `POS` corresponding to the rsid, chromosome and base pair position of the SNP. The columns that follow are assumed to contain effect sizes {log(OR)<sub>1</sub>,log(OR)<sub>2</sub>,...,log(OR)<sub>n</sub>} followed by the SEs {SE<sub>1</sub>,SE<sub>2</sub>,...,SE<sub>n</sub>}, when analyzing n studies. Furthermore, the first study listed is used as the reference study when measuring effective dilution. (See the sim_data.csv in the data directory for 2 studies or an example with three studies below.)
+For the sum_stats csv, PheMED expects the input csv file to have columns: `SNP`, `CHR`, and `POS` corresponding to the rsid, chromosome and base pair position of the SNP. The columns that follow are assumed to contain effect sizes {log(OR)<sub>1</sub>,log(OR)<sub>2</sub>,...,log(OR)<sub>n</sub>} followed by the SEs {SE<sub>1</sub>,SE<sub>2</sub>,...,SE<sub>n</sub>}, when analyzing n studies. Furthermore, the first study listed is used as the reference study when measuring effective dilution. (See the sim_data.csv in the data directory for 2 studies or an example with three studies below.) If constructing the merged dataset externally, include only SNPs that are shared across two or more GWAS studies.
 
 | SNP | CHR | POS | STUDY1 | STUDY2  | STUDY3 | SE1   | SE2  | SE3   |
 |-----|-----|-----|--------|---------|--------|-------|------|-------|
