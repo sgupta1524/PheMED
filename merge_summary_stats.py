@@ -23,8 +23,8 @@ def col_lookup(col_to_lookup, columns):
         'BETA': ['BETA', 'EFFECT', 'EFFECT_SIZE', 'EFFECT_ESTIMATE', 'LOGOR', 'LOG_ODDS', 'LOG_ODDS_RATIO', 'BETA_COEFFICIENT'],
         'OR' : ['OR', 'ODDS_RATIO', 'ODDS', 'ODDSRATIO'],
         'SE': ['SE', 'STDERR', 'STANDARD_ERROR', 'SEBETA', 'STD_ERR', 'STDERRLOGOR', 'SETest statistic'],
-        'ALLELE': ['ALLELE', 'ALLELE0', 'MINOR_ALLELE', 'MAJOR_ALLELE', 'MINOR', 'MAJOR', 'A1', 'A2', 'ALLELE1', 'ALLELE2', 
-                   'REF', 'ALT', 'REF_ALLELE', 'ALT_ALLELE', 'EFFECT_ALLELE', 'OTHER_ALLELE', 'EA', 'OA', 'ALLELE 1', 'ALLELE 2']
+        'ALLELE': ['ALLELE', 'ALLELE0', 'OTHER_ALLELE', 'EFFECT_ALLELE', 'OTHERALLELE', 'EFFECTALLELE', 'A1', 'A2', 'ALLELE1', 'ALLELE2', 
+                   'REF', 'ALT', 'REF_ALLELE', 'ALT_ALLELE', 'EFFECT_ALLELE', 'OTHER_ALLELE', 'EA', 'OA', 'ALLELE 1', 'ALLELE 2', 'MAJOR', 'MINOR']
     }
     values = mapping.get(col_to_lookup, [])
     for value in values:
@@ -123,7 +123,7 @@ def fix_colnames(df):
     result_df = result_df[ordered_cols]
     return result_df
 
-def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2, MAJOR1, MAJOR2, 
+def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, OTHERALLELE1, OTHERALLELE2, EFFECTALLELE1, EFFECTALLELE2, 
                Z1=None, Z2=None, MAF1=None, MAF2=None, Ncases1=None, Ncases2=None, Ncontrols1=None, Ncontrols2=None,
                OR1=None, OR2=None):
 
@@ -153,17 +153,17 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         gwas1['MAF_term'] = gwas1['MAF1'] * (1 - gwas1['MAF1'])
         gwas1[SE1] = 1 / np.sqrt(2 * gwas1['MAF_term'] * gwas1[Ncases1]*gwas1['Prop']*(1-gwas1['Prop']))
 
-    elif SE1 is None and MINOR1 and MAJOR1 and Ncases1 and Ncontrols1:
+    elif SE1 is None and OTHERALLELE1 and EFFECTALLELE1 and Ncases1 and Ncontrols1:
         print(f"Calculating SE with MAF from MAFdata file for {gwas1_filename}.")
         
-        gwas1[MINOR1] = gwas1[MINOR1].str.upper()
-        gwas1[MAJOR1] = gwas1[MAJOR1].str.upper()
+        gwas1[OTHERALLELE1] = gwas1[OTHERALLELE1].str.upper()
+        gwas1[EFFECTALLELE1] = gwas1[EFFECTALLELE1].str.upper()
 
         MAFdata = pd.read_csv("MAFdata/summary_stats_finngen_R7_F5_OPIOIDS (1) (1)", sep="\t")
         # Merge gwas1 with MAFdata to avoid row-wise operations
         merged_data = gwas1.merge(
         MAFdata[['rsids', 'alt', 'ref', 'af_alt']],
-        left_on=[SNP1, MINOR1, MAJOR1],
+        left_on=[SNP1, OTHERALLELE1, EFFECTALLELE1],
         right_on=['rsids', 'alt', 'ref'],
         how='inner'
         )
@@ -187,17 +187,17 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         gwas2[SE2] = 1 / np.sqrt(2 * gwas2['MAF_term'] * gwas2[Ncases2]*gwas2['Prop']*(1-gwas2['Prop']))
 
 
-    elif SE2 is None and MINOR2 and MAJOR2 and Ncases2 and Ncontrols2:
+    elif SE2 is None and OTHERALLELE2 and EFFECTALLELE2 and Ncases2 and Ncontrols2:
         print(f"Calculating SE with MAF from MAFdata file for {gwas1_filename}.")
         MAFdata = pd.read_csv("MAFdata/OUD_stringent.EUR.MVP.DrugAlcDep2021_formatted_cleaned.txt", sep="\t")
 
-        gwas2[MINOR2] = gwas2[MINOR2].str.upper()
-        gwas2[MAJOR2] = gwas2[MAJOR2].str.upper()
+        gwas2[OTHERALLELE2] = gwas2[OTHERALLELE2].str.upper()
+        gwas2[EFFECTALLELE2] = gwas2[EFFECTALLELE2].str.upper()
 
         # Merge gwas1 with MAFdata to avoid row-wise operations
         merged_data = gwas2.merge(
         MAFdata[['rsids', 'alt', 'ref', 'af_alt']],
-        left_on=[SNP2, MINOR2, MAJOR2],
+        left_on=[SNP2, OTHERALLELE2, EFFECTALLELE2],
         right_on=['rsids', 'alt', 'ref'],
         how='inner'
         )
@@ -236,65 +236,65 @@ def gwas_merge(gwas1, gwas2, SNP1, SNP2, BETA1, BETA2, SE1, SE2, MINOR1, MINOR2,
         #Warning for missing 
         print(f"Warning: BETA is not specified for {gwas2_filename}. Provide Beta, Odds ratio or Z score.")
 
-    print(f"Using columns: {SNP1}, {SNP2}, {BETA1}, {BETA2}, {SE1}, {SE2}, {MINOR1}, {MINOR2}, {MAJOR1}, {MAJOR2}")
-    gwas1 = gwas1.rename(columns={SNP1: 'SNP1', MINOR1: 'MINOR1', MAJOR1: 'MAJOR1', 
+    print(f"Using columns: {SNP1}, {SNP2}, {BETA1}, {BETA2}, {SE1}, {SE2}, {OTHERALLELE1}, {OTHERALLELE2}, {EFFECTALLELE1}, {EFFECTALLELE2}")
+    gwas1 = gwas1.rename(columns={SNP1: 'SNP1', OTHERALLELE1: 'OTHERALLELE1', EFFECTALLELE1: 'EFFECTALLELE1', 
                                     BETA1: 'BETA1', SE1: 'SE1'})
-    gwas2 = gwas2.rename(columns={SNP2: 'SNP2', MINOR2: 'MINOR2', MAJOR2: 'MAJOR2', 
+    gwas2 = gwas2.rename(columns={SNP2: 'SNP2', OTHERALLELE2: 'OTHERALLELE2', EFFECTALLELE2: 'EFFECTALLELE2', 
                                     BETA2: 'BETA2', SE2: 'SE2'})
     gwas1 = gwas1.rename(columns={col_lookup('CHR', gwas1.columns): 'CHR1', col_lookup('POS', gwas1.columns): 'POS1'})
     gwas2 = gwas2.rename(columns={col_lookup('CHR', gwas2.columns): 'CHR2', col_lookup('POS', gwas2.columns): 'POS2'})
 
-    if MINOR1 and MINOR2 and MAJOR1 and MAJOR2:
-        merged_1 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MINOR2', 'MAJOR2'])
-        merged_2 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'MINOR1', 'MAJOR1'], right_on=['SNP2', 'MAJOR2', 'MINOR2'])
+    if OTHERALLELE1 and OTHERALLELE2 and EFFECTALLELE1 and EFFECTALLELE2:
+        merged_1 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'OTHERALLELE1', 'EFFECTALLELE1'], right_on=['SNP2', 'OTHERALLELE2', 'EFFECTALLELE2'])
+        merged_2 = pd.merge(gwas1, gwas2, left_on=['SNP1', 'OTHERALLELE1', 'EFFECTALLELE1'], right_on=['SNP2', 'EFFECTALLELE2', 'OTHERALLELE2'])
         merged_2['BETA2'] = -1 * merged_2['BETA2']
         merged = pd.concat([merged_1, merged_2], ignore_index=True).drop_duplicates(subset=['SNP1'])
     
     else:
-        if not MINOR1 or MINOR1.strip() == "":
-            MINOR1 = col_lookup('ALLELE', gwas1.columns)
-        if not MINOR2 or MINOR2.strip() == "":
-            MINOR2 = col_lookup('ALLELE', gwas2.columns)
-        if not MAJOR1 or MAJOR1.strip() == "":
-            MAJOR1 = col_lookup('ALLELE', [col for col in gwas1.columns if col != MINOR1])
-        if not MAJOR2 or  MAJOR2.strip() == "":
-            MAJOR2 = col_lookup('ALLELE', [col for col in gwas2.columns if col != MINOR2])
+        if not OTHERALLELE1 or OTHERALLELE1.strip() == "":
+            OTHERALLELE1 = col_lookup('ALLELE', gwas1.columns)
+        if not OTHERALLELE2 or OTHERALLELE2.strip() == "":
+            OTHERALLELE2 = col_lookup('ALLELE', gwas2.columns)
+        if not EFFECTALLELE1 or EFFECTALLELE1.strip() == "":
+            EFFECTALLELE1 = col_lookup('ALLELE', [col for col in gwas1.columns if col != OTHERALLELE1])
+        if not EFFECTALLELE2 or  EFFECTALLELE2.strip() == "":
+            EFFECTALLELE2 = col_lookup('ALLELE', [col for col in gwas2.columns if col != OTHERALLELE2])
 
-        gwas1 = gwas1.rename(columns={MINOR1: 'MINOR1', MAJOR1: 'MAJOR1'})
-        gwas2 = gwas2.rename(columns={MINOR2: 'MINOR2', MAJOR2: 'MAJOR2'})
+        gwas1 = gwas1.rename(columns={OTHERALLELE1: 'OTHERALLELE1', EFFECTALLELE1: 'EFFECTALLELE1'})
+        gwas2 = gwas2.rename(columns={OTHERALLELE2: 'OTHERALLELE2', EFFECTALLELE2: 'EFFECTALLELE2'})
 
-        gwas1['MINOR1'] = gwas1['MINOR1'].str.upper()
-        gwas1['MAJOR1'] = gwas1['MAJOR1'].str.upper()
-        gwas2['MINOR2'] = gwas2['MINOR2'].str.upper()
-        gwas2['MAJOR2'] = gwas2['MAJOR2'].str.upper()
+        gwas1['OTHERALLELE1'] = gwas1['OTHERALLELE1'].str.upper()
+        gwas1['EFFECTALLELE1'] = gwas1['EFFECTALLELE1'].str.upper()
+        gwas2['OTHERALLELE2'] = gwas2['OTHERALLELE2'].str.upper()
+        gwas2['EFFECTALLELE2'] = gwas2['EFFECTALLELE2'].str.upper()
 
         merge_flip_neg = gwas1.merge(
             gwas2,
-            left_on=['SNP1', 'MINOR1', 'MAJOR1'],
-            right_on=['SNP2', 'MINOR2', 'MAJOR2'],
+            left_on=['SNP1', 'OTHERALLELE1', 'EFFECTALLELE1'],
+            right_on=['SNP2', 'OTHERALLELE2', 'EFFECTALLELE2'],
             how='inner'
         )
         merge_flip_neg['BETA2'] = -1 * merge_flip_neg['BETA2']
 
         merge_flip = gwas1.merge(
             gwas2,
-            left_on=['SNP1', 'MINOR1', 'MAJOR1'],
-            right_on=['SNP2', 'MINOR2', 'MAJOR2'],
+            left_on=['SNP1', 'OTHERALLELE1', 'EFFECTALLELE1'],
+            right_on=['SNP2', 'OTHERALLELE2', 'EFFECTALLELE2'],
             how='inner'
         )
 
         merge_neg = gwas1.merge(
             gwas2,
-            left_on=['SNP1', 'MINOR1', 'MAJOR1'],
-            right_on=['SNP2', 'MAJOR2', 'MINOR2'],
+            left_on=['SNP1', 'OTHERALLELE1', 'EFFECTALLELE1'],
+            right_on=['SNP2', 'EFFECTALLELE2', 'OTHERALLELE2'],
             how='inner'
         )
         merge_neg['BETA2'] = -1*merge_neg['BETA2']
 
         merge = gwas1.merge(
             gwas2,
-            left_on=['SNP1', 'MINOR1', 'MAJOR1'],
-            right_on=['SNP2', 'MAJOR2', 'MINOR2'],
+            left_on=['SNP1', 'OTHERALLELE1', 'EFFECTALLELE1'],
+            right_on=['SNP2', 'EFFECTALLELE2', 'OTHERALLELE2'],
             how='inner'
         )
         # Check correlations and merge based on conditions
@@ -363,10 +363,10 @@ def main():
     parser.add_argument("--BETA", nargs='+', help="BETA column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--OR", nargs='+', help="Odds Ratio column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--SE", nargs='+', help="SE column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
-    parser.add_argument("--MINOR", nargs='+', help="MINOR allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated." \
-    "give none or both or minor and major.", default=[])
-    parser.add_argument("--MAJOR", nargs='+', help="MAJOR allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated." \
-    "give none or both or minor and major.", default=[])
+    parser.add_argument("--OTHERALLELE", nargs='+', help="other allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated." \
+    "give none or both or other and effect alleles.", default=[])
+    parser.add_argument("--EFFECTALLELE", nargs='+', help="effect allele column names. Use None to skip specifying this argument for a GWAS file. Space-separated." \
+    "give none or both or effect and other alleles.", default=[])
     parser.add_argument("--Z", nargs='+', help="Z Score column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--MAF", nargs='+', help="Minor allele frequency column names. Use None to skip specifying this argument for a GWAS file. Space-separated.", default=[])
     parser.add_argument("--Ncases", nargs='+', help="Number of cases column names. Use None to skip specifying this argument " \
@@ -397,17 +397,17 @@ def main():
     if len(args.SE) < len(gwas_files)
     else [None if x == 'None' else x for x in args.SE]
 )
-    MINOR = (
-    [None if x == 'None' else x for x in args.MINOR]
-    + [None] * (len(gwas_files) - len(args.MINOR))
-    if len(args.MINOR) < len(gwas_files)
-    else [None if x == 'None' else x for x in args.MINOR]
+    OTHERALLELE = (
+    [None if x == 'None' else x for x in args.OTHERALLELE]
+    + [None] * (len(gwas_files) - len(args.OTHERALLELE))
+    if len(args.OTHERALLELE) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.OTHERALLELE]
 )
-    MAJOR = (
-    [None if x == 'None' else x for x in args.MAJOR]
-    + [None] * (len(gwas_files) - len(args.MAJOR))
-    if len(args.MAJOR) < len(gwas_files)
-    else [None if x == 'None' else x for x in args.MAJOR]
+    EFFECTALLELE = (
+    [None if x == 'None' else x for x in args.EFFECTALLELE]
+    + [None] * (len(gwas_files) - len(args.EFFECTALLELE))
+    if len(args.EFFECTALLELE) < len(gwas_files)
+    else [None if x == 'None' else x for x in args.EFFECTALLELE]
 )
     Z = args.Z + [None] * (len(gwas_files) - len(args.Z)) if len(args.Z) < len(gwas_files) else args.Z
     MAF = args.MAF + [None] * (len(gwas_files) - len(args.MAF)) if len(args.MAF) < len(gwas_files) else args.MAF
@@ -431,8 +431,8 @@ def main():
                 SNP[i], SNP[j],
                 BETA[i], BETA[j],
                 SE[i], SE[j],
-                MINOR[i], MINOR[j],
-                MAJOR[i], MAJOR[j],
+                OTHERALLELE[i], OTHERALLELE[j],
+                EFFECTALLELE[i], EFFECTALLELE[j],
                 Z[i], Z[j],
                 MAF[i], MAF[j],
                 Ncases[i], Ncases[j],
