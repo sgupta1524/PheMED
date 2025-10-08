@@ -37,7 +37,7 @@ def run_phemed_with_conditions(initial_conditions, optimisation_method, output_d
     return dilution_vals
 
 # write s function to check if diltuion values above are withon +- 0.5 of each other
-def check_dilution_stability(dilution_vals1, dilution_vals2, tolerance=0.5):
+def check_dilution_stability(dilution_vals1, dilution_vals2, tolerance):
     print(dilution_vals1, dilution_vals2)
     if dilution_vals1 is None or dilution_vals2 is None:
         return "invalid inputs"
@@ -54,12 +54,14 @@ def main():
     parser.add_argument("--initial_conditions_file", required=True, default="initial_conditions_list.json", 
                         help="JSON file with list of initial conditions. Please see the example file " \
                         "initial_conditions_list.json")
+    parser.add_argument("--tolerance", type=float, default=0.5, help="Tolerance for stability check.")
     args = parser.parse_args()
 
     sum_stats = args.sum_stats
     n_studies = args.n_studies
     output_dir = args.output_dir
     init_file = args.initial_conditions_file
+    tolerance = args.tolerance
     # run run_phemed_with_conditions with five different initial conditions and optimisation methods
     with open(init_file, "r") as file:
         initial_conditions_list = json.load(file)
@@ -79,8 +81,14 @@ def main():
             for j in range(i + 1, len(dilution_results)):
                 cond1, method1, vals1 = dilution_results[i]
                 cond2, method2, vals2 = dilution_results[j]
-                stable = check_dilution_stability(vals1, vals2)
+                stable = check_dilution_stability(vals1, vals2, tolerance)
                 print(f"Stability between {method1} ({cond1}) and {method2} ({cond2}): {stable}")
+                if stable == "not all within tolerance limit":
+                    print("Significant instability detected in phemed, stopping further checks.")
+                    break
+                else:
+                    print("No significant instability detected in phemed.")
+                    continue
 
 if __name__ == "__main__":
     main()
